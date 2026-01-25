@@ -4,6 +4,7 @@
 const config = require('../config');
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { getMailboxBasePath } = require('../utils/mailbox-path');
 
 /**
  * Send email handler
@@ -11,7 +12,7 @@ const { ensureAuthenticated } = require('../auth');
  * @returns {object} - MCP response
  */
 async function handleSendEmail(args) {
-  const { to, cc, bcc, subject, body, importance = 'normal', saveToSentItems = true } = args;
+  const { to, cc, bcc, subject, body, importance = 'normal', saveToSentItems = true, mailbox = null } = args;
   
   // Validate required parameters
   if (!to) {
@@ -89,13 +90,15 @@ async function handleSendEmail(args) {
       saveToSentItems
     };
     
-    // Make API call to send email
-    await callGraphAPI(accessToken, 'POST', 'me/sendMail', emailObject);
-    
+    // Make API call to send email (with optional shared mailbox support)
+    const basePath = getMailboxBasePath(mailbox);
+    await callGraphAPI(accessToken, 'POST', `${basePath}/sendMail`, emailObject);
+
+    const mailboxInfo = mailbox ? ` (from shared mailbox: ${mailbox})` : '';
     return {
-      content: [{ 
-        type: "text", 
-        text: `Email sent successfully!\n\nSubject: ${subject}\nRecipients: ${toRecipients.length}${ccRecipients.length > 0 ? ` + ${ccRecipients.length} CC` : ''}${bccRecipients.length > 0 ? ` + ${bccRecipients.length} BCC` : ''}\nMessage Length: ${body.length} characters`
+      content: [{
+        type: "text",
+        text: `Email sent successfully${mailboxInfo}!\n\nSubject: ${subject}\nRecipients: ${toRecipients.length}${ccRecipients.length > 0 ? ` + ${ccRecipients.length} CC` : ''}${bccRecipients.length > 0 ? ` + ${bccRecipients.length} BCC` : ''}\nMessage Length: ${body.length} characters`
       }]
     };
   } catch (error) {

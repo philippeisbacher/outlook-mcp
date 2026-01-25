@@ -3,6 +3,7 @@
  */
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { getMailboxBasePath } = require('../utils/mailbox-path');
 
 /**
  * Decline event handler
@@ -10,7 +11,7 @@ const { ensureAuthenticated } = require('../auth');
  * @returns {object} - MCP response
  */
 async function handleDeclineEvent(args) {
-  const { eventId, comment } = args;
+  const { eventId, comment, mailbox = null } = args;
 
   if (!eventId) {
     return {
@@ -25,8 +26,9 @@ async function handleDeclineEvent(args) {
     // Get access token
     const accessToken = await ensureAuthenticated();
 
-    // Build API endpoint
-    const endpoint = `me/events/${eventId}/decline`;
+    // Build API endpoint (with optional shared mailbox support)
+    const basePath = getMailboxBasePath(mailbox);
+    const endpoint = `${basePath}/events/${eventId}/decline`;
 
     // Request body
     const body = {
@@ -36,10 +38,11 @@ async function handleDeclineEvent(args) {
     // Make API call
     await callGraphAPI(accessToken, 'POST', endpoint, body);
 
+    const mailboxInfo = mailbox ? ` (shared mailbox: ${mailbox})` : '';
     return {
       content: [{
         type: "text",
-        text: `Event with ID ${eventId} has been successfully declined.`
+        text: `Event with ID ${eventId} has been successfully declined${mailboxInfo}.`
       }]
     };
   } catch (error) {

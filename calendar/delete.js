@@ -3,6 +3,7 @@
  */
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { getMailboxBasePath } = require('../utils/mailbox-path');
 
 /**
  * Delete event handler
@@ -10,7 +11,7 @@ const { ensureAuthenticated } = require('../auth');
  * @returns {object} - MCP response
  */
 async function handleDeleteEvent(args) {
-  const { eventId } = args;
+  const { eventId, mailbox = null } = args;
 
   if (!eventId) {
     return {
@@ -25,16 +26,18 @@ async function handleDeleteEvent(args) {
     // Get access token
     const accessToken = await ensureAuthenticated();
 
-    // Build API endpoint
-    const endpoint = `me/events/${eventId}`;
+    // Build API endpoint (with optional shared mailbox support)
+    const basePath = getMailboxBasePath(mailbox);
+    const endpoint = `${basePath}/events/${eventId}`;
 
     // Make API call
     await callGraphAPI(accessToken, 'DELETE', endpoint);
 
+    const mailboxInfo = mailbox ? ` (shared mailbox: ${mailbox})` : '';
     return {
       content: [{
         type: "text",
-        text: `Event with ID ${eventId} has been successfully deleted.`
+        text: `Event with ID ${eventId} has been successfully deleted${mailboxInfo}.`
       }]
     };
   } catch (error) {

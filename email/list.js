@@ -14,13 +14,14 @@ const { resolveFolderPath } = require('./folder-utils');
 async function handleListEmails(args) {
   const folder = args.folder || "inbox";
   const requestedCount = args.count || 10;
-  
+  const mailbox = args.mailbox || null;
+
   try {
     // Get access token
     const accessToken = await ensureAuthenticated();
 
-    // Resolve the folder path
-    const endpoint = await resolveFolderPath(accessToken, folder);
+    // Resolve the folder path (with optional shared mailbox support)
+    const endpoint = await resolveFolderPath(accessToken, folder, mailbox);
     
     // Add query parameters
     const queryParams = {
@@ -33,27 +34,29 @@ async function handleListEmails(args) {
     const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, queryParams, requestedCount);
     
     if (!response.value || response.value.length === 0) {
+      const mailboxInfo = mailbox ? ` (shared mailbox: ${mailbox})` : '';
       return {
-        content: [{ 
-          type: "text", 
-          text: `No emails found in ${folder}.`
+        content: [{
+          type: "text",
+          text: `No emails found in ${folder}${mailboxInfo}.`
         }]
       };
     }
-    
+
     // Format results
     const emailList = response.value.map((email, index) => {
       const sender = email.from ? email.from.emailAddress : { name: 'Unknown', address: 'unknown' };
       const date = new Date(email.receivedDateTime).toLocaleString();
       const readStatus = email.isRead ? '' : '[UNREAD] ';
-      
+
       return `${index + 1}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
     }).join("\n");
-    
+
+    const mailboxInfo = mailbox ? ` (shared mailbox: ${mailbox})` : '';
     return {
-      content: [{ 
-        type: "text", 
-        text: `Found ${response.value.length} emails in ${folder}:\n\n${emailList}`
+      content: [{
+        type: "text",
+        text: `Found ${response.value.length} emails in ${folder}${mailboxInfo}:\n\n${emailList}`
       }]
     };
   } catch (error) {

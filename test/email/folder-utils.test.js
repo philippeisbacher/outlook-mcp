@@ -214,3 +214,56 @@ describe('getFolderIdByName', () => {
     expect(callGraphAPI).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('shared mailbox support', () => {
+  const mockAccessToken = 'dummy_access_token';
+  const sharedMailbox = 'shared@company.com';
+
+  beforeEach(() => {
+    callGraphAPI.mockClear();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    console.error.mockRestore();
+  });
+
+  test('resolveFolderPath should use shared mailbox path for well-known folders', async () => {
+    const result = await resolveFolderPath(mockAccessToken, 'inbox', sharedMailbox);
+    expect(result).toBe(`users/${sharedMailbox}/mailFolders/inbox/messages`);
+    expect(callGraphAPI).not.toHaveBeenCalled();
+  });
+
+  test('getFolderIdByName should use shared mailbox path', async () => {
+    const folderId = 'folder-id-789';
+    const folderName = 'CustomFolder';
+
+    callGraphAPI.mockResolvedValueOnce({
+      value: [{ id: folderId, displayName: folderName }]
+    });
+
+    const result = await getFolderIdByName(mockAccessToken, folderName, sharedMailbox);
+
+    expect(result).toBe(folderId);
+    expect(callGraphAPI).toHaveBeenCalledWith(
+      mockAccessToken,
+      'GET',
+      `users/${sharedMailbox}/mailFolders`,
+      null,
+      { $filter: `displayName eq '${folderName}'` }
+    );
+  });
+
+  test('resolveFolderPath should resolve custom folder with shared mailbox', async () => {
+    const customFolderId = 'custom-folder-shared';
+    const customFolderName = 'SharedCustomFolder';
+
+    callGraphAPI.mockResolvedValueOnce({
+      value: [{ id: customFolderId, displayName: customFolderName }]
+    });
+
+    const result = await resolveFolderPath(mockAccessToken, customFolderName, sharedMailbox);
+
+    expect(result).toBe(`users/${sharedMailbox}/mailFolders/${customFolderId}/messages`);
+  });
+});

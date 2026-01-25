@@ -15,6 +15,7 @@ const { calendarTools } = require('./calendar');
 const { emailTools } = require('./email');
 const { folderTools } = require('./folder');
 const { rulesTools } = require('./rules');
+const { sharedMailboxTool } = require('./utils/shared-mailboxes');
 
 // Log startup information
 console.error(`STARTING ${config.SERVER_NAME.toUpperCase()} MCP SERVER`);
@@ -26,7 +27,8 @@ const TOOLS = [
   ...calendarTools,
   ...emailTools,
   ...folderTools,
-  ...rulesTools
+  ...rulesTools,
+  sharedMailboxTool
   // Future modules: contactsTools, etc.
 ];
 

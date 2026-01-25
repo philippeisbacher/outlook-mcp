@@ -40,11 +40,49 @@ Each module exports tools and handlers:
 
 ## Authentication Flow
 
-1. Azure app registration required with specific permissions (Mail.Read, Mail.Send, Calendars.ReadWrite, etc.)
-2. Start auth server: `npm run auth-server` 
+1. Azure app registration required with specific permissions (see below)
+2. Start auth server: `npm run auth-server`
 3. Use authenticate tool to get OAuth URL
 4. Complete browser authentication
 5. Tokens automatically stored and refreshed
+
+### Required Azure App Permissions
+
+**Primary mailbox permissions:**
+- Mail.Read, Mail.ReadWrite, Mail.Send
+- Calendars.Read, Calendars.ReadWrite
+- User.Read, Contacts.Read
+
+**Shared mailbox permissions (optional but recommended):**
+- Mail.Read.Shared, Mail.ReadWrite.Shared, Mail.Send.Shared
+- Calendars.Read.Shared, Calendars.ReadWrite.Shared
+
+To enable shared mailbox access, ensure these permissions are configured in your Azure app registration and re-authenticate if needed.
+
+## Shared Mailbox Support
+
+All email, calendar, and folder tools support accessing shared mailboxes via the `mailbox` parameter:
+
+```
+# Access emails from a shared mailbox
+list-emails mailbox="shared@company.com"
+
+# Search in a shared mailbox
+search-emails mailbox="shared@company.com" from="sender@example.com"
+
+# Send email from a shared mailbox
+send-email mailbox="shared@company.com" to="recipient@example.com" subject="..." body="..."
+
+# View shared mailbox calendar
+list-events mailbox="shared@company.com"
+
+# Discover available shared mailboxes
+list-shared-mailboxes
+```
+
+**Key files for shared mailbox support:**
+- `utils/mailbox-path.js` - Utility functions for building mailbox-aware API paths
+- `utils/shared-mailboxes.js` - Tool for discovering available shared mailboxes
 
 ## Configuration Requirements
 

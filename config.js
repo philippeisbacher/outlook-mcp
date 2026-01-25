@@ -20,7 +20,21 @@ module.exports = {
     clientId: process.env.OUTLOOK_CLIENT_ID || '',
     clientSecret: process.env.OUTLOOK_CLIENT_SECRET || '',
     redirectUri: 'http://localhost:3333/auth/callback',
-    scopes: ['Mail.Read', 'Mail.ReadWrite', 'Mail.Send', 'User.Read', 'Calendars.Read', 'Calendars.ReadWrite'],
+    scopes: [
+      // Primary mailbox permissions
+      'Mail.Read',
+      'Mail.ReadWrite',
+      'Mail.Send',
+      'User.Read',
+      'Calendars.Read',
+      'Calendars.ReadWrite',
+      // Shared mailbox permissions
+      'Mail.Read.Shared',
+      'Mail.ReadWrite.Shared',
+      'Mail.Send.Shared',
+      'Calendars.Read.Shared',
+      'Calendars.ReadWrite.Shared'
+    ],
     tokenStorePath: path.join(homeDir, '.outlook-mcp-tokens.json'),
     authServerUrl: 'http://localhost:3333'
   },

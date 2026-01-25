@@ -4,6 +4,7 @@
 const config = require('../config');
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { getMailboxBasePath } = require('../utils/mailbox-path');
 
 /**
  * Mark email as read handler
@@ -13,22 +14,24 @@ const { ensureAuthenticated } = require('../auth');
 async function handleMarkAsRead(args) {
   const emailId = args.id;
   const isRead = args.isRead !== undefined ? args.isRead : true; // Default to true
-  
+  const mailbox = args.mailbox || null;
+
   if (!emailId) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "Email ID is required."
       }]
     };
   }
-  
+
   try {
     // Get access token
     const accessToken = await ensureAuthenticated();
-    
-    // Make API call to update email read status
-    const endpoint = `me/messages/${encodeURIComponent(emailId)}`;
+
+    // Make API call to update email read status (with optional shared mailbox support)
+    const basePath = getMailboxBasePath(mailbox);
+    const endpoint = `${basePath}/messages/${encodeURIComponent(emailId)}`;
     const updateData = {
       isRead: isRead
     };
@@ -51,11 +54,12 @@ async function handleMarkAsRead(args) {
       
       // Improved error handling with more specific messages
       if (error.message.includes("doesn't belong to the targeted mailbox")) {
+        const mailboxInfo = mailbox ? ` or the shared mailbox ${mailbox}` : '';
         return {
           content: [
             {
               type: "text",
-              text: `The email ID seems invalid or doesn't belong to your mailbox. Please try with a different email ID.`
+              text: `The email ID seems invalid or doesn't belong to your mailbox${mailboxInfo}. Please try with a different email ID.`
             }
           ]
         };

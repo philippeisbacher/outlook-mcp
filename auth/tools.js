@@ -12,7 +12,22 @@ async function handleAbout() {
   return {
     content: [{
       type: "text",
-      text: `📧 MODULAR Outlook Assistant MCP Server v${config.SERVER_VERSION} 📧\n\nProvides access to Microsoft Outlook email, calendar, and contacts through Microsoft Graph API.\nImplemented with a modular architecture for improved maintainability.`
+      text: `📧 MODULAR Outlook Assistant MCP Server v${config.SERVER_VERSION} 📧
+
+Provides access to Microsoft Outlook email, calendar, and contacts through Microsoft Graph API.
+Implemented with a modular architecture for improved maintainability.
+
+Features:
+- Email: Read, search, send, and manage emails
+- Calendar: View, create, and manage calendar events
+- Folders: List and manage mail folders
+- Rules: Manage inbox rules
+- Shared Mailboxes: Access shared mailboxes and Microsoft 365 Group mailboxes
+
+To access a shared mailbox, use the 'mailbox' parameter with the shared mailbox email address.
+Example: list-emails with mailbox="shared@company.com"
+
+Use 'list-shared-mailboxes' to discover available shared mailboxes.`
     }]
   };
 }
@@ -55,24 +70,49 @@ async function handleAuthenticate(args) {
  */
 async function handleCheckAuthStatus() {
   console.error('[CHECK-AUTH-STATUS] Starting authentication status check');
-  
+
   const tokens = tokenManager.loadTokenCache();
-  
+
   console.error(`[CHECK-AUTH-STATUS] Tokens loaded: ${tokens ? 'YES' : 'NO'}`);
-  
+
   if (!tokens || !tokens.access_token) {
     console.error('[CHECK-AUTH-STATUS] No valid access token found');
     return {
-      content: [{ type: "text", text: "Not authenticated" }]
+      content: [{ type: "text", text: "Not authenticated. Please use the 'authenticate' tool to sign in." }]
     };
   }
-  
+
   console.error('[CHECK-AUTH-STATUS] Access token present');
   console.error(`[CHECK-AUTH-STATUS] Token expires at: ${tokens.expires_at}`);
   console.error(`[CHECK-AUTH-STATUS] Current time: ${Date.now()}`);
-  
+
+  // Check if token is expired
+  const isExpired = tokens.expires_at && Date.now() > tokens.expires_at;
+
+  // Parse scopes from token response
+  const grantedScopes = tokens.scope ? tokens.scope.split(' ') : [];
+  const hasSharedMailboxAccess = grantedScopes.some(s =>
+    s.toLowerCase().includes('.shared')
+  );
+
+  let statusMessage = isExpired
+    ? "Token expired. Please re-authenticate using the 'authenticate' tool."
+    : "Authenticated and ready";
+
+  // Add scope information
+  if (!isExpired && grantedScopes.length > 0) {
+    statusMessage += "\n\nGranted permissions:";
+    statusMessage += `\n- Primary mailbox: Yes`;
+    statusMessage += `\n- Shared mailboxes: ${hasSharedMailboxAccess ? 'Yes' : 'No (re-authenticate to enable)'}`;
+
+    if (!hasSharedMailboxAccess) {
+      statusMessage += "\n\nNote: To access shared mailboxes, please re-authenticate with 'authenticate' tool (force=true).";
+      statusMessage += "\nThe new authentication will request shared mailbox permissions.";
+    }
+  }
+
   return {
-    content: [{ type: "text", text: "Authenticated and ready" }]
+    content: [{ type: "text", text: statusMessage }]
   };
 }
 

@@ -4,6 +4,7 @@
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
 const { DEFAULT_TIMEZONE } = require('../config');
+const { getMailboxBasePath } = require('../utils/mailbox-path');
 
 /**
  * Create event handler
@@ -11,7 +12,7 @@ const { DEFAULT_TIMEZONE } = require('../config');
  * @returns {object} - MCP response
  */
 async function handleCreateEvent(args) {
-  const { subject, start, end, attendees, body } = args;
+  const { subject, start, end, attendees, body, mailbox = null } = args;
 
   if (!subject || !start || !end) {
     return {
@@ -26,8 +27,9 @@ async function handleCreateEvent(args) {
     // Get access token
     const accessToken = await ensureAuthenticated();
 
-    // Build API endpoint
-    const endpoint = `me/events`;
+    // Build API endpoint (with optional shared mailbox support)
+    const basePath = getMailboxBasePath(mailbox);
+    const endpoint = `${basePath}/events`;
 
     // Request body
     const bodyContent = {
@@ -41,10 +43,11 @@ async function handleCreateEvent(args) {
     // Make API call
     const response = await callGraphAPI(accessToken, 'POST', endpoint, bodyContent);
 
+    const mailboxInfo = mailbox ? ` in shared mailbox ${mailbox}` : '';
     return {
       content: [{
         type: "text",
-        text: `Event '${subject}' has been successfully created.`
+        text: `Event '${subject}' has been successfully created${mailboxInfo}.`
       }]
     };
   } catch (error) {
