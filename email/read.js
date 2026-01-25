@@ -67,6 +67,11 @@ async function handleReadEmail(args) {
         body = email.bodyPreview || 'No content';
       }
       
+      // Format categories
+      const categories = email.categories && email.categories.length > 0
+        ? email.categories.join(', ')
+        : 'None';
+
       // Format the email
       const formattedEmail = `From: ${sender}
 To: ${to}
@@ -74,6 +79,7 @@ ${cc !== 'None' ? `CC: ${cc}\n` : ''}${bcc !== 'None' ? `BCC: ${bcc}\n` : ''}Sub
 Date: ${date}
 Importance: ${email.importance || 'normal'}
 Has Attachments: ${email.hasAttachments ? 'Yes' : 'No'}
+Categories: ${categories}
 
 ${body}`;
       

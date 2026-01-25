@@ -70,6 +70,10 @@ const emailTools = [
           type: "boolean",
           description: "Filter to only unread emails"
         },
+        category: {
+          type: "string",
+          description: "Filter by category/label name (use 'list-categories' to see available categories)"
+        },
         before: {
           type: "string",
           description: "Filter emails received before this date. Supports ISO dates (2024-01-15), or relative: 'today', 'yesterday', '7 days ago', '2 weeks ago', '1 month ago'"

@@ -21,6 +21,7 @@ async function handleSearchEmails(args) {
   const hasAttachments = args.hasAttachments;
   const unreadOnly = args.unreadOnly;
   const mailbox = args.mailbox || null;
+  const category = args.category || null;  // Filter by category/label
 
   // New parameters for advanced filtering
   const before = args.before || null;  // ISO date string or relative like "2024-01-01"
@@ -41,7 +42,7 @@ async function handleSearchEmails(args) {
       endpoint,
       accessToken,
       { query, from, to, subject },
-      { hasAttachments, unreadOnly, before, after },
+      { hasAttachments, unreadOnly, before, after, category },
       requestedCount,
       sortOrder,
       skip
@@ -144,11 +145,12 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
     }
   }
 
-  // 3. Try with only filters (boolean + date)
+  // 3. Try with only filters (boolean + date + category)
   const hasFilters = filterTerms.hasAttachments === true ||
                      filterTerms.unreadOnly === true ||
                      filterTerms.before ||
-                     filterTerms.after;
+                     filterTerms.after ||
+                     filterTerms.category;
 
   if (hasFilters) {
     try {
@@ -310,9 +312,9 @@ function parseDate(dateStr) {
 }
 
 /**
- * Add filters to query parameters (boolean + date filters)
+ * Add filters to query parameters (boolean + date + category filters)
  * @param {object} params - Query parameters
- * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after)
+ * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after, category)
  */
 function addFilters(params, filterTerms) {
   const filterConditions = [];
@@ -338,6 +340,12 @@ function addFilters(params, filterTerms) {
     if (afterDate) {
       filterConditions.push(`receivedDateTime ge ${afterDate}`);
     }
+  }
+
+  // Add category filter
+  if (filterTerms.category) {
+    // OData filter for categories array contains the specified category
+    filterConditions.push(`categories/any(c:c eq '${filterTerms.category}')`);
   }
 
   // Add $filter parameter if we have any filter conditions
@@ -368,9 +376,12 @@ function formatSearchResults(response, sortOrder = 'desc', skip = 0) {
     const sender = email.from?.emailAddress || { name: 'Unknown', address: 'unknown' };
     const date = new Date(email.receivedDateTime).toLocaleString();
     const readStatus = email.isRead ? '' : '[UNREAD] ';
+    const categories = email.categories && email.categories.length > 0
+      ? `[${email.categories.join(', ')}] `
+      : '';
     const displayIndex = skip + index + 1;
 
-    return `${displayIndex}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
+    return `${displayIndex}. ${readStatus}${categories}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
   }).join("\n");
 
   // Build info string

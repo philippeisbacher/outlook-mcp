@@ -15,6 +15,7 @@ const { calendarTools } = require('./calendar');
 const { emailTools } = require('./email');
 const { folderTools } = require('./folder');
 const { rulesTools } = require('./rules');
+const { categoryTools } = require('./categories');
 const { sharedMailboxTool } = require('./utils/shared-mailboxes');
 
 // Log startup information
@@ -28,6 +29,7 @@ const TOOLS = [
   ...emailTools,
   ...folderTools,
   ...rulesTools,
+  ...categoryTools,
   sharedMailboxTool
   // Future modules: contactsTools, etc.
 ];

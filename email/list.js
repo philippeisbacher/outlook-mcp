@@ -48,8 +48,11 @@ async function handleListEmails(args) {
       const sender = email.from ? email.from.emailAddress : { name: 'Unknown', address: 'unknown' };
       const date = new Date(email.receivedDateTime).toLocaleString();
       const readStatus = email.isRead ? '' : '[UNREAD] ';
+      const categories = email.categories && email.categories.length > 0
+        ? `[${email.categories.join(', ')}] `
+        : '';
 
-      return `${index + 1}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
+      return `${index + 1}. ${readStatus}${categories}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
     }).join("\n");
 
     const mailboxInfo = mailbox ? ` (shared mailbox: ${mailbox})` : '';
