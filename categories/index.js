@@ -15,7 +15,12 @@ const categoryTools = [
     description: "Lists all available Outlook categories (labels) that can be applied to emails",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
       required: []
     },
     handler: handleListCategories

@@ -1,9 +1,11 @@
 const handleListCategories = require('../../categories/list');
 const { callGraphAPI } = require('../../utils/graph-api');
 const { ensureAuthenticated } = require('../../auth');
+const { getMailboxBasePath } = require('../../utils/mailbox-path');
 
 jest.mock('../../utils/graph-api');
 jest.mock('../../auth');
+jest.mock('../../utils/mailbox-path');
 
 describe('handleListCategories', () => {
   const mockAccessToken = 'dummy_access_token';
@@ -11,6 +13,8 @@ describe('handleListCategories', () => {
   beforeEach(() => {
     callGraphAPI.mockClear();
     ensureAuthenticated.mockClear();
+    getMailboxBasePath.mockClear();
+    getMailboxBasePath.mockImplementation((mailbox) => mailbox ? `users/${mailbox}` : 'me');
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -70,5 +74,28 @@ describe('handleListCategories', () => {
     const result = await handleListCategories({});
 
     expect(result.content[0].text).toBe('Error listing categories: API Error');
+  });
+
+  test('should list categories from shared mailbox', async () => {
+    const sharedMailbox = 'shared@company.com';
+    const mockCategories = {
+      value: [
+        { displayName: 'Shared Category', color: 'preset0' }
+      ]
+    };
+
+    ensureAuthenticated.mockResolvedValue(mockAccessToken);
+    callGraphAPI.mockResolvedValue(mockCategories);
+
+    const result = await handleListCategories({ mailbox: sharedMailbox });
+
+    expect(callGraphAPI).toHaveBeenCalledWith(
+      mockAccessToken,
+      'GET',
+      `users/${sharedMailbox}/outlook/masterCategories`,
+      { $top: 50 }
+    );
+    expect(result.content[0].text).toContain('shared mailbox');
+    expect(result.content[0].text).toContain('Shared Category');
   });
 });

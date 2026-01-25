@@ -3,6 +3,7 @@
  */
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { getMailboxBasePath } = require('../utils/mailbox-path');
 
 /**
  * List categories handler - returns the master category list
@@ -10,15 +11,19 @@ const { ensureAuthenticated } = require('../auth');
  * @returns {object} - MCP response
  */
 async function handleListCategories(args) {
+  const mailbox = args.mailbox || null;
+
   try {
     const accessToken = await ensureAuthenticated();
+    const basePath = getMailboxBasePath(mailbox);
+    const mailboxInfo = mailbox ? ` for shared mailbox: ${mailbox}` : '';
 
-    console.error('[LIST-CATEGORIES] Fetching master category list');
+    console.error(`[LIST-CATEGORIES] Fetching master category list${mailboxInfo}`);
 
     const response = await callGraphAPI(
       accessToken,
       'GET',
-      'me/outlook/masterCategories',
+      `${basePath}/outlook/masterCategories`,
       { $top: 50 }
     );
 
@@ -26,7 +31,7 @@ async function handleListCategories(args) {
       return {
         content: [{
           type: "text",
-          text: "No categories found. You can create categories in Outlook settings."
+          text: `No categories found${mailboxInfo}. You can create categories in Outlook settings.`
         }]
       };
     }
@@ -38,7 +43,7 @@ async function handleListCategories(args) {
     return {
       content: [{
         type: "text",
-        text: `Found ${response.value.length} categories:\n\n${categoryList}`
+        text: `Found ${response.value.length} categories${mailboxInfo}:\n\n${categoryList}`
       }]
     };
   } catch (error) {
