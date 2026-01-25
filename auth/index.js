@@ -16,12 +16,12 @@ async function ensureAuthenticated(forceNew = false) {
     throw new Error('Authentication required');
   }
   
-  // Check for existing token
-  const accessToken = tokenManager.getAccessToken();
+  // Check for existing token (getAccessToken now handles refresh automatically)
+  const accessToken = await tokenManager.getAccessToken();
   if (!accessToken) {
     throw new Error('Authentication required');
   }
-  
+
   return accessToken;
 }
 
