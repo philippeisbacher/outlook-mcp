@@ -82,12 +82,20 @@ async function handleCheckAuthStatus() {
     };
   }
 
-  console.error('[CHECK-AUTH-STATUS] Access token present');
-  console.error(`[CHECK-AUTH-STATUS] Token expires at: ${tokens.expires_at}`);
-  console.error(`[CHECK-AUTH-STATUS] Current time: ${Date.now()}`);
-
-  // Check if token is expired
-  const isExpired = tokens.expires_at && Date.now() > tokens.expires_at;
+  // Try to get a valid token (this will auto-refresh if expired)
+  try {
+    const accessToken = await tokenManager.getAccessToken();
+    if (!accessToken) {
+      return {
+        content: [{ type: "text", text: "Token expired and could not be refreshed. Please re-authenticate using the 'authenticate' tool." }]
+      };
+    }
+  } catch (error) {
+    console.error('[CHECK-AUTH-STATUS] Error getting access token:', error.message);
+    return {
+      content: [{ type: "text", text: `Token error: ${error.message}. Please re-authenticate using the 'authenticate' tool.` }]
+    };
+  }
 
   // Parse scopes from token response
   const grantedScopes = tokens.scope ? tokens.scope.split(' ') : [];
@@ -95,12 +103,10 @@ async function handleCheckAuthStatus() {
     s.toLowerCase().includes('.shared')
   );
 
-  let statusMessage = isExpired
-    ? "Token expired. Please re-authenticate using the 'authenticate' tool."
-    : "Authenticated and ready";
+  let statusMessage = "Authenticated and ready";
 
   // Add scope information
-  if (!isExpired && grantedScopes.length > 0) {
+  if (grantedScopes.length > 0) {
     statusMessage += "\n\nGranted permissions:";
     statusMessage += `\n- Primary mailbox: Yes`;
     statusMessage += `\n- Shared mailboxes: ${hasSharedMailboxAccess ? 'Yes' : 'No (re-authenticate to enable)'}`;
