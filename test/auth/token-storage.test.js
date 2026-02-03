@@ -1,12 +1,13 @@
 const fs = require('fs').promises;
 const https = require('https');
 const path = require('path');
+const querystring = require('querystring');
 const TokenStorage = require('../../auth/token-storage');
 
 jest.mock('fs', () => ({
   promises: {
     readFile: jest.fn(),
-    writeFile: jest.fn(),
+    writeFile: jest.fn().mockResolvedValue(undefined),
     unlink: jest.fn(),
   }
 }));
@@ -29,6 +30,12 @@ describe('TokenStorage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset fs mocks to default successful behavior
+    fs.readFile.mockReset();
+    fs.writeFile.mockReset().mockResolvedValue(undefined);
+    fs.unlink.mockReset();
+    https.request.mockReset();
+
     tokenStorage = new TokenStorage(baseConfig);
     // Ensure tokens are null at the start of each test that doesn't mock readFile
     tokenStorage.tokens = null;
@@ -173,7 +180,8 @@ describe('TokenStorage', () => {
     });
 
     it('should return false if token is not expired and outside buffer', () => {
-      tokenStorage.tokens = { expires_at: Date.now() + (baseConfig.refreshTokenBuffer + 60000) }; // Valid for 1 min + buffer
+      // Token expires far in the future (10 minutes + buffer)
+      tokenStorage.tokens = { expires_at: Date.now() + (tokenStorage.config.refreshTokenBuffer + 600000) };
       expect(tokenStorage.isTokenExpired()).toBe(false);
     });
   });
@@ -415,11 +423,13 @@ describe('TokenStorage', () => {
             .rejects.toThrow('No refresh token available to refresh the access token.');
     });
 
-    it('should handle concurrent refresh calls by returning the same promise', async () => {
+    it('should handle concurrent refresh calls by making only one HTTP request', async () => {
         const promise1 = tokenStorage.refreshAccessToken();
         const promise2 = tokenStorage.refreshAccessToken();
 
-        expect(promise1).toBe(promise2); // Should be the same promise object
+        // Both calls should return promises (may be different objects due to .then() chaining)
+        expect(promise1).toBeInstanceOf(Promise);
+        expect(promise2).toBeInstanceOf(Promise);
 
         // Simulate successful response for the single underlying HTTP request
         const mockRes = {

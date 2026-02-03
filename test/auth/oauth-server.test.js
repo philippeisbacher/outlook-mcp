@@ -3,35 +3,62 @@ const request = require('supertest');
 const { setupOAuthRoutes, createAuthConfig } = require('../../auth/oauth-server');
 const TokenStorage = require('../../auth/token-storage');
 
-jest.mock('../../auth/token-storage'); // Mock TokenStorage class
+// Mock fs to prevent actual file operations
+jest.mock('fs', () => ({
+  promises: {
+    readFile: jest.fn().mockRejectedValue({ code: 'ENOENT' }),
+    writeFile: jest.fn().mockResolvedValue(),
+    unlink: jest.fn().mockResolvedValue(),
+  },
+  existsSync: jest.fn().mockReturnValue(false),
+  readFileSync: jest.fn().mockReturnValue('{}'),
+  writeFileSync: jest.fn(),
+}));
 
 const mockAuthConfig = {
   clientId: 'test-client-id',
   clientSecret: 'test-client-secret',
-  redirectUri: 'http://localhost:3334/auth/callback', // Use a different port or path for testing
+  redirectUri: 'http://localhost:3334/auth/callback',
   scopes: ['test_scope', 'openid'],
   tokenEndpoint: 'https://login.example.com/token',
   authEndpoint: 'https://login.example.com/authorize',
 };
 
-// Provide a minimal mock for TokenStorage instance methods
-const mockTokenStorageInstance = {
-  exchangeCodeForTokens: jest.fn(),
-  getValidAccessToken: jest.fn(),
-  getExpiryTime: jest.fn(),
-};
-
 describe('OAuth Server Routes', () => {
   let app;
+  let tokenStorageInstance;
+  let consoleErrorSpy;
+  let consoleLogSpy;
+  let consoleWarnSpy;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    TokenStorage.mockImplementation(() => mockTokenStorageInstance); // Return the mocked instance
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Create a real TokenStorage instance so instanceof check passes
+    tokenStorageInstance = new TokenStorage({
+      clientId: mockAuthConfig.clientId,
+      clientSecret: mockAuthConfig.clientSecret,
+      redirectUri: mockAuthConfig.redirectUri,
+      scopes: mockAuthConfig.scopes,
+      tokenEndpoint: mockAuthConfig.tokenEndpoint,
+    });
+
+    // Mock the methods we need to control
+    tokenStorageInstance.exchangeCodeForTokens = jest.fn();
+    tokenStorageInstance.getValidAccessToken = jest.fn();
+    tokenStorageInstance.getExpiryTime = jest.fn();
 
     app = express();
-    // It's important that the TokenStorage instance passed to setupOAuthRoutes is the one we can control.
-    // For these tests, we don't need a real TokenStorage, so we pass the mock.
-    setupOAuthRoutes(app, mockTokenStorageInstance, mockAuthConfig);
+    setupOAuthRoutes(app, tokenStorageInstance, mockAuthConfig);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
   });
 
   describe('GET /auth', () => {
@@ -55,7 +82,7 @@ describe('OAuth Server Routes', () => {
       const tempApp = express();
       // Create a new authConfig without clientId for this specific test
       const noClientIdAuthConfig = { ...mockAuthConfig, clientId: null };
-      setupOAuthRoutes(tempApp, mockTokenStorageInstance, noClientIdAuthConfig);
+      setupOAuthRoutes(tempApp, tokenStorageInstance, noClientIdAuthConfig);
 
       const response = await request(tempApp).get('/auth');
       expect(response.status).toBe(500);
@@ -70,14 +97,14 @@ describe('OAuth Server Routes', () => {
     const mockState = 'mock_state_value'; // Example state
 
     it('should exchange code for tokens and return success HTML', async () => {
-      mockTokenStorageInstance.exchangeCodeForTokens.mockResolvedValue({ access_token: 'mock_access_token' });
+      tokenStorageInstance.exchangeCodeForTokens.mockResolvedValue({ access_token: 'mock_access_token' });
 
       // Note: State validation is mocked/skipped here as session management is outside this module.
       // In a real app, the 'state' would be generated in /auth, stored (e.g. session),
       // and verified here. The test passes 'state' to simulate it coming from provider.
       const response = await request(app).get(`/auth/callback?code=${mockAuthCode}&state=${mockState}`);
 
-      expect(mockTokenStorageInstance.exchangeCodeForTokens).toHaveBeenCalledWith(mockAuthCode);
+      expect(tokenStorageInstance.exchangeCodeForTokens).toHaveBeenCalledWith(mockAuthCode);
       expect(response.status).toBe(200);
       expect(response.text).toContain('Authentication Successful');
     });
@@ -91,7 +118,7 @@ describe('OAuth Server Routes', () => {
       expect(response.text).toContain('Authorization Failed');
       expect(response.text).toContain(`Error:</strong> ${oauthError}`);
       expect(response.text).toContain(`Description:</strong> ${oauthErrorDesc}`);
-      expect(mockTokenStorageInstance.exchangeCodeForTokens).not.toHaveBeenCalled();
+      expect(tokenStorageInstance.exchangeCodeForTokens).not.toHaveBeenCalled();
     });
 
     it('should return 400 if no code is provided', async () => {
@@ -99,39 +126,37 @@ describe('OAuth Server Routes', () => {
       expect(response.status).toBe(400);
       expect(response.text).toContain('Authorization Failed');
       expect(response.text).toContain('Error:</strong> Missing Authorization Code');
-      expect(mockTokenStorageInstance.exchangeCodeForTokens).not.toHaveBeenCalled();
+      expect(tokenStorageInstance.exchangeCodeForTokens).not.toHaveBeenCalled();
     });
 
     // Test for state missing - module currently warns but doesn't block.
     // This test verifies the warning behavior.
     // it('should log a warning if state is missing (but still proceed as per current module logic)', async () => {
     //     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    //     mockTokenStorageInstance.exchangeCodeForTokens.mockResolvedValue({ access_token: 'mock_access_token' });
+    //     tokenStorageInstance.exchangeCodeForTokens.mockResolvedValue({ access_token: 'mock_access_token' });
 
     //     await request(app).get(`/auth/callback?code=${mockAuthCode}`); // No state passed
 
     //     expect(consoleWarnSpy).toHaveBeenCalledWith("OAuth callback received without a 'state' parameter. CSRF validation cannot be performed by this module alone.");
-    //     expect(mockTokenStorageInstance.exchangeCodeForTokens).toHaveBeenCalledWith(mockAuthCode); // Still called
+    //     expect(tokenStorageInstance.exchangeCodeForTokens).toHaveBeenCalledWith(mockAuthCode); // Still called
     //     consoleWarnSpy.mockRestore();
     // });
 
     it('should return 400 if state is missing from callback', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       const response = await request(app).get(`/auth/callback?code=${mockAuthCode}`); // No state
 
       expect(response.status).toBe(400);
       expect(response.text).toContain('Authorization Failed');
       expect(response.text).toContain('Error:</strong> Missing State Parameter');
       expect(response.text).toContain('The state parameter was missing from the OAuth callback.');
-      expect(mockTokenStorageInstance.exchangeCodeForTokens).not.toHaveBeenCalled();
+      expect(tokenStorageInstance.exchangeCodeForTokens).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith("OAuth callback received without a 'state' parameter. Rejecting request to prevent potential CSRF attack.");
-      consoleErrorSpy.mockRestore();
     });
 
 
     it('should return 500 if token exchange fails', async () => {
       const exchangeError = new Error('Token exchange process failed');
-      mockTokenStorageInstance.exchangeCodeForTokens.mockRejectedValue(exchangeError);
+      tokenStorageInstance.exchangeCodeForTokens.mockRejectedValue(exchangeError);
 
       const response = await request(app).get(`/auth/callback?code=${mockAuthCode}&state=${mockState}`);
 
@@ -145,8 +170,8 @@ describe('OAuth Server Routes', () => {
     it('should return valid status if token exists and is valid', async () => {
       const mockAccessToken = 'valid_token_123';
       const mockExpiry = Date.now() + 3600000; // 1 hour from now
-      mockTokenStorageInstance.getValidAccessToken.mockResolvedValue(mockAccessToken);
-      mockTokenStorageInstance.getExpiryTime.mockReturnValue(mockExpiry);
+      tokenStorageInstance.getValidAccessToken.mockResolvedValue(mockAccessToken);
+      tokenStorageInstance.getExpiryTime.mockReturnValue(mockExpiry);
 
       const response = await request(app).get('/token-status');
 
@@ -157,7 +182,7 @@ describe('OAuth Server Routes', () => {
     });
 
     it('should return "no valid token" status if token is not found', async () => {
-      mockTokenStorageInstance.getValidAccessToken.mockResolvedValue(null);
+      tokenStorageInstance.getValidAccessToken.mockResolvedValue(null);
 
       const response = await request(app).get('/token-status');
 
@@ -168,7 +193,7 @@ describe('OAuth Server Routes', () => {
 
     it('should return 500 if checking token status throws an error', async () => {
       const statusError = new Error('Failed to check token status');
-      mockTokenStorageInstance.getValidAccessToken.mockRejectedValue(statusError);
+      tokenStorageInstance.getValidAccessToken.mockRejectedValue(statusError);
 
       const response = await request(app).get('/token-status');
 
