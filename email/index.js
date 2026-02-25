@@ -7,6 +7,7 @@ const handleReadEmail = require('./read');
 const handleSendEmail = require('./send');
 const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
+const { handleListAttachments, handleGetAttachment } = require('./attachments');
 
 // Shared mailbox description used across all email tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary mailbox.";
@@ -106,7 +107,7 @@ const emailTools = [
   },
   {
     name: "read-email",
-    description: "Reads the content of a specific email from your inbox or a shared mailbox",
+    description: "Reads the content of a specific email from your inbox or a shared mailbox. If the email has attachments (Has Attachments: Yes), use list-attachments to see them and get-attachment to read their content.",
     inputSchema: {
       type: "object",
       properties: {
@@ -208,6 +209,48 @@ const emailTools = [
       required: ["id"]
     },
     handler: handleDeleteEmail
+  },
+  {
+    name: "list-attachments",
+    description: "Lists all attachments of a specific email, returning their names, sizes, content types, and IDs needed to download them.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to list attachments for"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["id"]
+    },
+    handler: handleListAttachments
+  },
+  {
+    name: "get-attachment",
+    description: "Downloads a specific email attachment by ID. Returns base64 content for images and binary files, plain text for text files. Use list-attachments first to get the attachment ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        emailId: {
+          type: "string",
+          description: "ID of the email containing the attachment"
+        },
+        attachmentId: {
+          type: "string",
+          description: "ID of the attachment to download (from list-attachments)"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["emailId", "attachmentId"]
+    },
+    handler: handleGetAttachment
   }
 ];
 
@@ -218,5 +261,7 @@ module.exports = {
   handleReadEmail,
   handleSendEmail,
   handleMarkAsRead,
-  handleDeleteEmail
+  handleDeleteEmail,
+  handleListAttachments,
+  handleGetAttachment
 };
