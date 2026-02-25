@@ -21,21 +21,21 @@ describe('resolveFolderPath', () => {
   });
 
   describe('well-known folders', () => {
-    test('should return inbox endpoint when no folder name is provided', async () => {
+    test('Bug 4: should return me/messages (global) when no folder name is provided', async () => {
       const result = await resolveFolderPath(mockAccessToken, null);
-      expect(result).toBe(WELL_KNOWN_FOLDERS['inbox']);
+      expect(result).toBe('me/messages');
       expect(callGraphAPI).not.toHaveBeenCalled();
     });
 
-    test('should return inbox endpoint when undefined folder name is provided', async () => {
+    test('Bug 4: should return me/messages (global) when undefined folder name is provided', async () => {
       const result = await resolveFolderPath(mockAccessToken, undefined);
-      expect(result).toBe(WELL_KNOWN_FOLDERS['inbox']);
+      expect(result).toBe('me/messages');
       expect(callGraphAPI).not.toHaveBeenCalled();
     });
 
-    test('should return inbox endpoint when empty string is provided', async () => {
+    test('Bug 4: should return me/messages (global) when empty string is provided', async () => {
       const result = await resolveFolderPath(mockAccessToken, '');
-      expect(result).toBe(WELL_KNOWN_FOLDERS['inbox']);
+      expect(result).toBe('me/messages');
       expect(callGraphAPI).not.toHaveBeenCalled();
     });
 
@@ -190,17 +190,70 @@ describe('getFolderIdByName', () => {
     // First call returns empty
     callGraphAPI.mockResolvedValueOnce({ value: [] });
 
-    // Second call returns folders without a match
+    // Second call returns top-level folders without a match (but with children)
     callGraphAPI.mockResolvedValueOnce({
       value: [
-        { id: 'id1', displayName: 'OtherFolder' }
+        { id: 'id1', displayName: 'OtherFolder', childFolderCount: 0 }
       ]
     });
 
     const result = await getFolderIdByName(mockAccessToken, folderName);
 
     expect(result).toBeNull();
-    expect(callGraphAPI).toHaveBeenCalledTimes(2);
+  });
+
+  test('Bug 3: should find child folders (e.g. 01_OPEN under Inbox)', async () => {
+    const childFolderId = 'child-folder-id-789';
+    const childFolderName = '01_OPEN';
+
+    // First call: exact match filter returns empty
+    callGraphAPI.mockResolvedValueOnce({ value: [] });
+
+    // Second call: top-level folders (no match, but Inbox has children)
+    callGraphAPI.mockResolvedValueOnce({
+      value: [
+        { id: 'inbox-id', displayName: 'Inbox', childFolderCount: 3 },
+        { id: 'sent-id', displayName: 'Sent Items', childFolderCount: 0 }
+      ]
+    });
+
+    // Third call: child folders of Inbox
+    callGraphAPI.mockResolvedValueOnce({
+      value: [
+        { id: 'child-1', displayName: '70_internal_c4l' },
+        { id: childFolderId, displayName: '01_OPEN' },
+        { id: 'child-3', displayName: 'Archiv' }
+      ]
+    });
+
+    const result = await getFolderIdByName(mockAccessToken, childFolderName);
+
+    expect(result).toBe(childFolderId);
+  });
+
+  test('Bug 3: should find child folders case-insensitively', async () => {
+    const childFolderId = 'child-folder-id-abc';
+
+    // First call: exact match filter returns empty
+    callGraphAPI.mockResolvedValueOnce({ value: [] });
+
+    // Second call: top-level folders
+    callGraphAPI.mockResolvedValueOnce({
+      value: [
+        { id: 'inbox-id', displayName: 'Inbox', childFolderCount: 2 }
+      ]
+    });
+
+    // Third call: child folders of Inbox
+    callGraphAPI.mockResolvedValueOnce({
+      value: [
+        { id: childFolderId, displayName: 'archiv' }
+      ]
+    });
+
+    const result = await getFolderIdByName(mockAccessToken, 'Archiv');
+
+    expect(result).toBe(childFolderId);
   });
 
   test('should return null when API call fails', async () => {

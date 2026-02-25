@@ -12,7 +12,7 @@ const { resolveFolderPath } = require('./folder-utils');
  * @returns {object} - MCP response
  */
 async function handleSearchEmails(args) {
-  const folder = args.folder || "inbox";
+  const folder = args.folder || null;
   const requestedCount = args.count || 10;
   const query = args.query || '';
   const from = args.from || '';
@@ -111,10 +111,10 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
         searchAttempts.push(`single-term-${term}`);
 
         // For single term search, only use $search with that term
+        // Graph API does not support $orderby together with $search
         const simplifiedParams = {
           $top: Math.min(50, maxCount),
-          $select: config.EMAIL_SELECT_FIELDS,
-          $orderby: orderBy
+          $select: config.EMAIL_SELECT_FIELDS
         };
 
         // Add skip if specified
@@ -122,13 +122,11 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
           simplifiedParams.$skip = skip;
         }
 
-        // Add the search term in the appropriate KQL syntax
+        // Add the search term in the appropriate KQL syntax (outer double quotes required)
         if (term === 'query') {
-          // General query doesn't need a prefix
           simplifiedParams.$search = `"${searchTerms[term]}"`;
         } else {
-          // Specific field searches use field:value syntax
-          simplifiedParams.$search = `${term}:"${searchTerms[term]}"`;
+          simplifiedParams.$search = `"${term}:${searchTerms[term]}"`;
         }
 
         // Add boolean and date filters if applicable
@@ -233,25 +231,26 @@ function buildSearchParams(searchTerms, filterTerms, count, orderBy = 'receivedD
   const kqlTerms = [];
 
   if (searchTerms.query) {
-    // General query doesn't need a prefix
     kqlTerms.push(searchTerms.query);
   }
 
   if (searchTerms.subject) {
-    kqlTerms.push(`subject:"${searchTerms.subject}"`);
+    kqlTerms.push(`subject:${searchTerms.subject}`);
   }
 
   if (searchTerms.from) {
-    kqlTerms.push(`from:"${searchTerms.from}"`);
+    kqlTerms.push(`from:${searchTerms.from}`);
   }
 
   if (searchTerms.to) {
-    kqlTerms.push(`to:"${searchTerms.to}"`);
+    kqlTerms.push(`to:${searchTerms.to}`);
   }
 
-  // Add $search if we have any search terms
+  // Add $search if we have any search terms (wrapped in outer double quotes for Graph API KQL)
   if (kqlTerms.length > 0) {
-    params.$search = kqlTerms.join(' ');
+    params.$search = `"${kqlTerms.join(' ')}"`;
+    // Graph API does not support $orderby together with $search
+    delete params.$orderby;
   }
 
   // Add filters (boolean + date)

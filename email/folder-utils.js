@@ -34,9 +34,9 @@ async function resolveFolderPath(accessToken, folderName, mailbox = null) {
   const wellKnownFolders = getWellKnownFolders(mailbox);
   const basePath = getMailboxBasePath(mailbox);
 
-  // Default to inbox if no folder specified
+  // Default to global messages endpoint if no folder specified (searches all folders)
   if (!folderName) {
-    return wellKnownFolders['inbox'];
+    return `${basePath}/messages`;
   }
 
   // Check if it's a well-known folder (case-insensitive)
@@ -90,7 +90,7 @@ async function getFolderIdByName(accessToken, folderName, mailbox = null) {
       return response.value[0].id;
     }
 
-    // If exact match fails, try to get all folders and do a case-insensitive comparison
+    // If exact match fails, try to get all top-level folders and do a case-insensitive comparison
     console.error(`No exact match found for "${folderName}", trying case-insensitive search`);
     const allFoldersResponse = await callGraphAPI(
       accessToken,
@@ -109,6 +109,32 @@ async function getFolderIdByName(accessToken, folderName, mailbox = null) {
       if (matchingFolder) {
         console.error(`Found case-insensitive match for "${folderName}" with ID: ${matchingFolder.id}`);
         return matchingFolder.id;
+      }
+
+      // Search child folders for folders that have children
+      const foldersWithChildren = allFoldersResponse.value.filter(f => f.childFolderCount > 0);
+      for (const parentFolder of foldersWithChildren) {
+        try {
+          const childResponse = await callGraphAPI(
+            accessToken,
+            'GET',
+            `${basePath}/mailFolders/${parentFolder.id}/childFolders`,
+            null,
+            { $top: 100 }
+          );
+
+          if (childResponse.value) {
+            const matchingChild = childResponse.value.find(
+              child => child.displayName.toLowerCase() === lowerFolderName
+            );
+            if (matchingChild) {
+              console.error(`Found child folder "${folderName}" under "${parentFolder.displayName}" with ID: ${matchingChild.id}`);
+              return matchingChild.id;
+            }
+          }
+        } catch (childError) {
+          console.error(`Error searching child folders of "${parentFolder.displayName}": ${childError.message}`);
+        }
       }
     }
 
