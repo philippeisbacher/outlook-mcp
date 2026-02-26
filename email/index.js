@@ -10,6 +10,7 @@ const handleDeleteEmail = require('./delete');
 const { handleListAttachments, handleGetAttachment } = require('./attachments');
 const { handleReplyEmail, handleForwardEmail } = require('./reply');
 const handleFlagEmail = require('./flag');
+const handleGetEmailThread = require('./thread');
 
 // Shared mailbox description used across all email tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary mailbox.";
@@ -217,6 +218,25 @@ const emailTools = [
     handler: handleDeleteEmail
   },
   {
+    name: "get-email-thread",
+    description: "Retrieves all messages in an email conversation/thread, sorted oldest first",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of any email in the thread"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["id"]
+    },
+    handler: handleGetEmailThread
+  },
+  {
     name: "flag-email",
     description: "Flags, unflags, or marks an email as complete",
     inputSchema: {
@@ -350,5 +370,6 @@ module.exports = {
   handleGetAttachment,
   handleReplyEmail,
   handleForwardEmail,
-  handleFlagEmail
+  handleFlagEmail,
+  handleGetEmailThread
 };
