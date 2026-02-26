@@ -53,7 +53,7 @@ async function handleSearchEmails(args) {
       skip
     );
 
-    return formatSearchResults(response, sortOrder, skip);
+    return formatSearchResults(response, sortOrder, skip, requestedCount);
   } catch (error) {
     // Handle authentication errors
     if (error.message === 'Authentication required') {
@@ -388,9 +388,10 @@ function addFilters(params, filterTerms) {
  * @param {object} response - The API response object
  * @param {string} sortOrder - Sort order used ('asc' or 'desc')
  * @param {number} skip - Number of results skipped
+ * @param {number} requestedCount - Number of results that were requested
  * @returns {object} - MCP response object
  */
-function formatSearchResults(response, sortOrder = 'desc', skip = 0) {
+function formatSearchResults(response, sortOrder = 'desc', skip = 0, requestedCount = 0) {
   if (!response.value || response.value.length === 0) {
     return {
       content: [{
@@ -423,10 +424,15 @@ function formatSearchResults(response, sortOrder = 'desc', skip = 0) {
     infoStr = ` (${sortInfo})`;
   }
 
+  // Pagination hint: if we got exactly as many as requested, there are likely more
+  const hasMoreHint = requestedCount > 0 && response.value.length === requestedCount
+    ? `\n\nTo see more results, use skip=${skip + requestedCount}.`
+    : '';
+
   return {
     content: [{
       type: "text",
-      text: `Found ${response.value.length} emails${infoStr}:\n\n${emailList}`
+      text: `Found ${response.value.length} emails${infoStr}:\n\n${emailList}${hasMoreHint}`
     }]
   };
 }

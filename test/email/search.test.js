@@ -540,6 +540,36 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Feature: pagination hint', () => {
+    const makeEmails = (n) => Array.from({ length: n }, (_, i) => ({
+      id: `email-${i}`,
+      subject: `Email ${i}`,
+      from: { emailAddress: { name: 'Sender', address: 'sender@example.com' } },
+      receivedDateTime: `2026-01-0${i + 1}T10:00:00Z`,
+      isRead: true,
+      categories: []
+    }));
+
+    test('should show skip hint when result count equals requested count', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      // Return exactly 10 results (= default count)
+      callGraphAPIPaginated.mockResolvedValue({ value: makeEmails(10) });
+
+      const result = await handleSearchEmails({ query: 'test', count: 10 });
+
+      expect(result.content[0].text).toContain('skip=10');
+    });
+
+    test('should NOT show skip hint when fewer results than requested count', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: makeEmails(3) });
+
+      const result = await handleSearchEmails({ query: 'test', count: 10 });
+
+      expect(result.content[0].text).not.toContain('skip=');
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');
