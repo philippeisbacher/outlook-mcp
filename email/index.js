@@ -70,6 +70,10 @@ const emailTools = [
           type: "string",
           description: "Filter by text in the email body"
         },
+        attachmentName: {
+          type: "string",
+          description: "Filter by attachment filename (e.g. 'rechnung.pdf' or 'report')"
+        },
         hasAttachments: {
           type: "boolean",
           description: "Filter to only emails with attachments"

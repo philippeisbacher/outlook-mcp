@@ -473,6 +473,39 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Feature: attachment name search', () => {
+    test('attachmentName filter should produce attachment: KQL term', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ attachmentName: 'rechnung.pdf' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBe('"attachment:rechnung.pdf"');
+    });
+
+    test('multi-word attachment name should wrap value in inner quotes', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ attachmentName: 'annual report.xlsx' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBe('"attachment:\\"annual report.xlsx\\""');
+    });
+
+    test('attachmentName + from combined should produce correct KQL', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'bob@example.com', attachmentName: 'invoice.pdf' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('from:bob@example.com');
+      expect(params.$search).toContain('attachment:invoice.pdf');
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');

@@ -20,6 +20,7 @@ async function handleSearchEmails(args) {
   const to = args.to || '';
   const subject = args.subject || '';
   const body = args.body || '';
+  const attachmentName = args.attachmentName || '';
   const hasAttachments = args.hasAttachments;
   const unreadOnly = args.unreadOnly;
   const mailbox = args.mailbox || null;
@@ -43,7 +44,7 @@ async function handleSearchEmails(args) {
     const response = await progressiveSearch(
       endpoint,
       accessToken,
-      { query, from, to, subject, body },
+      { query, from, to, subject, body, attachmentName },
       { hasAttachments, unreadOnly, before, after, category },
       requestedCount,
       sortOrder,
@@ -124,7 +125,7 @@ function applyClientSideFilters(emails, filterTerms) {
  */
 async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms, maxCount, sortOrder = 'desc', skip = 0) {
   const orderBy = `receivedDateTime ${sortOrder}`;
-  const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject || searchTerms.body);
+  const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject || searchTerms.body || searchTerms.attachmentName);
 
   // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
   // Date, hasAttachments and unreadOnly filters are embedded as KQL terms in $search (server-side).
@@ -216,6 +217,10 @@ function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
 
   if (searchTerms.body) {
     kqlTerms.push(`body:${kqlPhrase(searchTerms.body)}`);
+  }
+
+  if (searchTerms.attachmentName) {
+    kqlTerms.push(`attachment:${kqlPhrase(searchTerms.attachmentName)}`);
   }
 
   if (filterTerms.hasAttachments === true) {
