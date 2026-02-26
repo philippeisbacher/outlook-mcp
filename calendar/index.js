@@ -42,7 +42,7 @@ const calendarTools = [
   },
   {
     name: "search-events",
-    description: "Search calendar events by subject text and/or date range",
+    description: "Search calendar events by subject text, attendee, location, and/or date range. Uses calendarView to correctly expand recurring events.",
     inputSchema: {
       type: "object",
       properties: {
@@ -50,13 +50,21 @@ const calendarTools = [
           type: "string",
           description: "Text to search for in event subjects"
         },
+        attendee: {
+          type: "string",
+          description: "Filter events by attendee email address (e.g. 'alice@example.com')"
+        },
+        location: {
+          type: "string",
+          description: "Filter events by location name (e.g. 'Konferenzraum')"
+        },
         after: {
           type: "string",
-          description: "Filter events starting after this date (ISO format, e.g. '2026-03-01')"
+          description: "Filter events starting after this date (ISO format, e.g. '2026-03-01'). Defaults to now."
         },
         before: {
           type: "string",
-          description: "Filter events starting before this date (ISO format, e.g. '2026-03-31')"
+          description: "Filter events starting before this date (ISO format, e.g. '2026-03-31'). Defaults to 30 days from after."
         },
         count: {
           type: "number",

@@ -119,6 +119,49 @@ describe('handleSearchEvents', () => {
     });
   });
 
+  describe('attendee and location filters', () => {
+    test('attendee filter should use OData any() expression in $filter', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ attendee: 'alice@example.com' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.$filter).toContain("attendees/any(a:a/emailAddress/address eq 'alice@example.com')");
+    });
+
+    test('attendee with apostrophe should be escaped', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ attendee: "john's.boss@example.com" });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.$filter).toContain("john''s.boss@example.com");
+    });
+
+    test('location filter should use contains() on location/displayName', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ location: 'Konferenzraum' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.$filter).toContain("contains(location/displayName, 'Konferenzraum')");
+    });
+
+    test('attendee + query should combine in $filter', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ query: 'Standup', attendee: 'bob@example.com' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.$filter).toContain("contains(subject, 'Standup')");
+      expect(params.$filter).toContain("attendees/any(a:a/emailAddress/address eq 'bob@example.com')");
+    });
+  });
+
   describe('count and mailbox', () => {
     test('should respect count parameter', async () => {
       ensureAuthenticated.mockResolvedValue(mockAccessToken);

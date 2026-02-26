@@ -16,6 +16,8 @@ async function handleSearchEvents(args) {
   const count = Math.min(args.count || 10, config.MAX_RESULT_COUNT);
   const mailbox = args.mailbox || null;
   const query = args.query || null;
+  const attendee = args.attendee || null;
+  const location = args.location || null;
 
   const startDateTime = args.after
     ? new Date(args.after).toISOString()
@@ -42,9 +44,23 @@ async function handleSearchEvents(args) {
       $select: config.CALENDAR_SELECT_FIELDS
     };
 
-    // Text search via $filter contains() — compatible with calendarView
+    // Build $filter conditions — all compatible with calendarView
+    const filterConditions = [];
+
     if (query) {
-      queryParams.$filter = `contains(subject, '${escapeODataString(query)}')`;
+      filterConditions.push(`contains(subject, '${escapeODataString(query)}')`);
+    }
+
+    if (attendee) {
+      filterConditions.push(`attendees/any(a:a/emailAddress/address eq '${escapeODataString(attendee)}')`);
+    }
+
+    if (location) {
+      filterConditions.push(`contains(location/displayName, '${escapeODataString(location)}')`);
+    }
+
+    if (filterConditions.length > 0) {
+      queryParams.$filter = filterConditions.join(' and ');
     }
 
     const response = await callGraphAPI(accessToken, 'GET', endpoint, null, queryParams);
