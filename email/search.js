@@ -19,6 +19,7 @@ async function handleSearchEmails(args) {
   const from = args.from || '';
   const to = args.to || '';
   const subject = args.subject || '';
+  const body = args.body || '';
   const hasAttachments = args.hasAttachments;
   const unreadOnly = args.unreadOnly;
   const mailbox = args.mailbox || null;
@@ -42,7 +43,7 @@ async function handleSearchEmails(args) {
     const response = await progressiveSearch(
       endpoint,
       accessToken,
-      { query, from, to, subject },
+      { query, from, to, subject, body },
       { hasAttachments, unreadOnly, before, after, category },
       requestedCount,
       sortOrder,
@@ -131,7 +132,7 @@ function applyClientSideFilters(emails, filterTerms) {
  */
 async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms, maxCount, sortOrder = 'desc', skip = 0) {
   const orderBy = `receivedDateTime ${sortOrder}`;
-  const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject);
+  const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject || searchTerms.body);
 
   // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
   // Date filters are embedded as KQL received: ranges in $search (server-side).
@@ -219,6 +220,10 @@ function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
 
   if (searchTerms.to) {
     kqlTerms.push(`to:${kqlPhrase(searchTerms.to)}`);
+  }
+
+  if (searchTerms.body) {
+    kqlTerms.push(`body:${kqlPhrase(searchTerms.body)}`);
   }
 
   // Add KQL date range filter — server-side filtering via $search

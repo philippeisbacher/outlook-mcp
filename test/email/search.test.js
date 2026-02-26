@@ -396,6 +396,39 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Feature: body search parameter', () => {
+    test('body filter should produce body: KQL term', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ body: 'invoice' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBe('"body:invoice"');
+    });
+
+    test('multi-word body filter should wrap value in inner quotes', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ body: 'payment due' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBe('"body:\\"payment due\\""');
+    });
+
+    test('body + from combined should produce correct KQL', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'alice@example.com', body: 'invoice' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('from:alice@example.com');
+      expect(params.$search).toContain('body:invoice');
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');

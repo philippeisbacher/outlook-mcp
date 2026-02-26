@@ -65,6 +65,10 @@ const emailTools = [
           type: "string",
           description: "Filter by email subject"
         },
+        body: {
+          type: "string",
+          description: "Filter by text in the email body"
+        },
         hasAttachments: {
           type: "boolean",
           description: "Filter to only emails with attachments"
