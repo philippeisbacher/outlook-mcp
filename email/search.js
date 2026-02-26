@@ -24,7 +24,9 @@ async function handleSearchEmails(args) {
   const hasAttachments = args.hasAttachments;
   const unreadOnly = args.unreadOnly;
   const mailbox = args.mailbox || null;
-  const category = args.category || null;  // Filter by category/label
+  const category = args.category || null;
+  const minSize = args.minSize || null;  // Minimum email size in bytes
+  const maxSize = args.maxSize || null;  // Maximum email size in bytes
 
   // New parameters for advanced filtering
   const before = args.before || null;  // ISO date string or relative like "2024-01-01"
@@ -45,7 +47,7 @@ async function handleSearchEmails(args) {
       endpoint,
       accessToken,
       { query, from, to, subject, body, attachmentName },
-      { hasAttachments, unreadOnly, before, after, category },
+      { hasAttachments, unreadOnly, before, after, category, minSize, maxSize },
       requestedCount,
       sortOrder,
       skip
@@ -150,7 +152,9 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
                      filterTerms.unreadOnly === true ||
                      filterTerms.before ||
                      filterTerms.after ||
-                     filterTerms.category;
+                     filterTerms.category ||
+                     filterTerms.minSize != null ||
+                     filterTerms.maxSize != null;
 
   if (hasFilters) {
     const filterParams = {
@@ -362,6 +366,15 @@ function addFilters(params, filterTerms) {
   // Add category filter
   if (filterTerms.category) {
     filterConditions.push(`categories/any(c:c eq '${escapeODataString(filterTerms.category)}')`);
+  }
+
+  // Add size filters
+  if (filterTerms.minSize != null) {
+    filterConditions.push(`size ge ${filterTerms.minSize}`);
+  }
+
+  if (filterTerms.maxSize != null) {
+    filterConditions.push(`size le ${filterTerms.maxSize}`);
   }
 
   // Add $filter parameter if we have any filter conditions

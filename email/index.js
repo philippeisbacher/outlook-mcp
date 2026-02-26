@@ -74,6 +74,14 @@ const emailTools = [
           type: "string",
           description: "Filter by attachment filename (e.g. 'rechnung.pdf' or 'report')"
         },
+        minSize: {
+          type: "number",
+          description: "Minimum email size in bytes (e.g. 500000 for ~500 KB)"
+        },
+        maxSize: {
+          type: "number",
+          description: "Maximum email size in bytes (e.g. 5000000 for ~5 MB)"
+        },
         hasAttachments: {
           type: "boolean",
           description: "Filter to only emails with attachments"

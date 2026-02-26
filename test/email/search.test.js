@@ -506,6 +506,40 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Feature: size filter', () => {
+    test('minSize filter should add size ge condition to $filter (Path 2)', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ minSize: 500000 });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$filter).toContain('size ge 500000');
+      expect(params.$search).toBeUndefined();
+    });
+
+    test('maxSize filter should add size le condition to $filter (Path 2)', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ maxSize: 1000000 });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$filter).toContain('size le 1000000');
+    });
+
+    test('minSize + maxSize should combine in $filter', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ minSize: 100000, maxSize: 5000000 });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$filter).toContain('size ge 100000');
+      expect(params.$filter).toContain('size le 5000000');
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');
