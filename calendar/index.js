@@ -9,6 +9,7 @@ const handleDeclineEvent = require('./decline');
 const handleCreateEvent = require('./create');
 const handleCancelEvent = require('./cancel');
 const handleDeleteEvent = require('./delete');
+const handleUpdateEvent = require('./update');
 
 // Shared mailbox description used across all calendar tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary calendar.";
@@ -216,6 +217,50 @@ const calendarTools = [
     handler: handleCancelEvent
   },
   {
+    name: "update-event",
+    description: "Updates an existing calendar event. Only the provided fields are changed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        eventId: {
+          type: "string",
+          description: "The ID of the event to update"
+        },
+        subject: {
+          type: "string",
+          description: "New subject/title for the event"
+        },
+        start: {
+          type: "string",
+          description: "New start time (ISO 8601, e.g. '2026-03-01T10:00:00')"
+        },
+        end: {
+          type: "string",
+          description: "New end time (ISO 8601, e.g. '2026-03-01T11:00:00')"
+        },
+        body: {
+          type: "string",
+          description: "New body content (HTML or plain text)"
+        },
+        location: {
+          type: "string",
+          description: "New location name (e.g. 'Konferenzraum A')"
+        },
+        attendees: {
+          type: "array",
+          items: { type: "string" },
+          description: "New list of attendee email addresses (replaces existing attendees)"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["eventId"]
+    },
+    handler: handleUpdateEvent
+  },
+  {
     name: "delete-event",
     description: "Deletes a calendar event from your calendar or a shared mailbox",
     inputSchema: {
@@ -245,5 +290,6 @@ module.exports = {
   handleDeclineEvent,
   handleCreateEvent,
   handleCancelEvent,
-  handleDeleteEvent
+  handleDeleteEvent,
+  handleUpdateEvent
 };
