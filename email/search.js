@@ -5,6 +5,7 @@ const config = require('../config');
 const { callGraphAPIPaginated } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
 const { resolveFolderPath } = require('./folder-utils');
+const { escapeODataString } = require('../utils/odata-helpers');
 
 /**
  * Search emails handler
@@ -348,8 +349,7 @@ function addFilters(params, filterTerms) {
 
   // Add category filter
   if (filterTerms.category) {
-    // OData filter for categories array contains the specified category
-    filterConditions.push(`categories/any(c:c eq '${filterTerms.category}')`);
+    filterConditions.push(`categories/any(c:c eq '${escapeODataString(filterTerms.category)}')`);
   }
 
   // Add $filter parameter if we have any filter conditions

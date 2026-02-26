@@ -382,6 +382,20 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Security: OData injection in category filter', () => {
+    test('category with apostrophe: $filter should escape single quotes', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      // No text terms → Path 2 ($filter)
+      await handleSearchEmails({ category: "John's Category" });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      // OData escaping: ' → ''
+      expect(params.$filter).toContain("categories/any(c:c eq 'John''s Category')");
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');

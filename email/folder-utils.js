@@ -3,6 +3,7 @@
  */
 const { callGraphAPI } = require('../utils/graph-api');
 const { getMailboxBasePath, getWellKnownFolders, buildMailboxPath } = require('../utils/mailbox-path');
+const { escapeODataString } = require('../utils/odata-helpers');
 
 /**
  * Well-known folder names and their endpoints (for primary mailbox - legacy support)
@@ -76,7 +77,7 @@ async function getFolderIdByName(accessToken, folderName, mailbox = null) {
       'GET',
       `${basePath}/mailFolders`,
       null,
-      { $filter: `displayName eq '${folderName}'` }
+      { $filter: `displayName eq '${escapeODataString(folderName)}'` }
     );
 
     if (response.value && response.value.length > 0) {

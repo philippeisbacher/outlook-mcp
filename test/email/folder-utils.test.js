@@ -266,6 +266,16 @@ describe('getFolderIdByName', () => {
     expect(result).toBeNull();
     expect(callGraphAPI).toHaveBeenCalledTimes(1);
   });
+
+  test('Security: folder name with apostrophe should be escaped in $filter', async () => {
+    callGraphAPI.mockResolvedValueOnce({ value: [{ id: 'folder-id', displayName: "John's Inbox" }] });
+
+    await getFolderIdByName(mockAccessToken, "John's Inbox");
+
+    const queryParams = callGraphAPI.mock.calls[0][4];
+    // OData escaping: single quote → two single quotes
+    expect(queryParams.$filter).toBe("displayName eq 'John''s Inbox'");
+  });
 });
 
 describe('shared mailbox support', () => {
