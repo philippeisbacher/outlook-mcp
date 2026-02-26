@@ -3,6 +3,7 @@
  */
 const handleListEvents = require('./list');
 const handleSearchEvents = require('./search');
+const handleGetSchedule = require('./schedule');
 const handleDeclineEvent = require('./decline');
 const handleCreateEvent = require('./create');
 const handleCancelEvent = require('./cancel');
@@ -78,6 +79,33 @@ const calendarTools = [
       required: []
     },
     handler: handleSearchEvents
+  },
+  {
+    name: "get-schedule",
+    description: "Checks free/busy availability for one or more people over a time range. Useful for finding meeting slots.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        attendees: {
+          type: "string",
+          description: "Comma-separated email addresses to check (e.g. 'alice@example.com, bob@example.com')"
+        },
+        startTime: {
+          type: "string",
+          description: "Start of the time range (ISO format, e.g. '2026-03-01T09:00:00')"
+        },
+        endTime: {
+          type: "string",
+          description: "End of the time range (ISO format, e.g. '2026-03-01T17:00:00')"
+        },
+        timezone: {
+          type: "string",
+          description: "IANA timezone for interpreting times (default: 'UTC', e.g. 'Europe/Berlin')"
+        }
+      },
+      required: ["attendees", "startTime", "endTime"]
+    },
+    handler: handleGetSchedule
   },
   {
     name: "decline-event",
@@ -188,6 +216,7 @@ module.exports = {
   calendarTools,
   handleListEvents,
   handleSearchEvents,
+  handleGetSchedule,
   handleDeclineEvent,
   handleCreateEvent,
   handleCancelEvent,
