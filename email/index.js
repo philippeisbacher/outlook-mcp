@@ -9,6 +9,7 @@ const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
 const { handleListAttachments, handleGetAttachment } = require('./attachments');
 const { handleReplyEmail, handleForwardEmail } = require('./reply');
+const handleFlagEmail = require('./flag');
 
 // Shared mailbox description used across all email tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary mailbox.";
@@ -212,6 +213,30 @@ const emailTools = [
     handler: handleDeleteEmail
   },
   {
+    name: "flag-email",
+    description: "Flags, unflags, or marks an email as complete",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to flag"
+        },
+        status: {
+          type: "string",
+          enum: ["flagged", "notFlagged", "complete"],
+          description: "Flag status: 'flagged' (default), 'notFlagged' to remove flag, 'complete' to mark done"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["id"]
+    },
+    handler: handleFlagEmail
+  },
+  {
     name: "reply-email",
     description: "Replies to an existing email. Use replyAll to reply to all recipients.",
     inputSchema: {
@@ -320,5 +345,6 @@ module.exports = {
   handleListAttachments,
   handleGetAttachment,
   handleReplyEmail,
-  handleForwardEmail
+  handleForwardEmail,
+  handleFlagEmail
 };
