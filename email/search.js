@@ -131,17 +131,19 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
 
   // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
   // Date filters are embedded as KQL received: ranges in $search (server-side).
-  // Boolean/category filters are still applied client-side on the results.
+  // Boolean/category filters and skip are applied client-side after sorting.
+  // Note: $skip is NOT supported with $search in Graph API — we fetch skip+count
+  // items and slice client-side after sorting.
   if (hasTextTerms) {
-    const apiFetchCount = Math.min(50, maxCount);
+    const apiFetchCount = Math.min(250, maxCount + skip);
 
-    const params = buildSearchParams(searchTerms, filterTerms, apiFetchCount, skip);
+    const params = buildSearchParams(searchTerms, filterTerms, apiFetchCount, 0);
     console.error("Executing $search with params:", params);
 
     const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, params, apiFetchCount);
     let filtered = applyClientSideFilters(response.value || [], filterTerms);
     filtered = sortByDate(filtered, sortOrder);
-    filtered = filtered.slice(0, maxCount);
+    filtered = filtered.slice(skip, skip + maxCount);
     return { value: filtered };
   }
 

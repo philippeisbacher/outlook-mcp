@@ -329,6 +329,59 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Bug 1: $skip is incompatible with $search', () => {
+    const makeEmail = (id, date) => ({
+      id,
+      subject: `Email ${id}`,
+      from: { emailAddress: { name: 'Sender', address: 'sender@example.com' } },
+      receivedDateTime: date,
+      isRead: true,
+      categories: []
+    });
+
+    test('text search with skip: $skip should NOT be in API request params', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', skip: 20 });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBeDefined();
+      expect(params.$skip).toBeUndefined();
+    });
+
+    test('text search with skip + count: $top should be skip + count', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: [] });
+
+      await handleSearchEmails({ from: 'godaddy', skip: 20, count: 5 });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$top).toBe(25); // 20 + 5
+    });
+
+    test('text search with skip: results should be sliced correctly after client-side sort', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({
+        value: [
+          makeEmail('oldest', '2024-01-01T10:00:00Z'),
+          makeEmail('newest', '2024-04-01T10:00:00Z'),
+          makeEmail('second', '2024-03-01T10:00:00Z'),
+          makeEmail('third',  '2024-02-01T10:00:00Z'),
+        ]
+      });
+
+      // sort desc: [newest(Apr), second(Mar), third(Feb), oldest(Jan)]
+      // skip=2, count=1 → slice(2, 3) → [third]
+      const result = await handleSearchEmails({ from: 'sender@example.com', skip: 2, count: 1 });
+
+      expect(result.content[0].text).toContain('ID: third');
+      expect(result.content[0].text).not.toContain('ID: newest');
+      expect(result.content[0].text).not.toContain('ID: second');
+      expect(result.content[0].text).not.toContain('ID: oldest');
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');
