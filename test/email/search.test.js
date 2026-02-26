@@ -56,7 +56,9 @@ describe('handleSearchEmails', () => {
       const firstCall = callGraphAPIPaginated.mock.calls[0];
       const params = firstCall[3];
 
-      expect(params.$search).toBe('"subject:Quarterly Report"');
+      // Multi-word subjects get inner KQL quotes for exact phrase search,
+      // escaped within the outer double-quote wrapper
+      expect(params.$search).toBe('"subject:\\"Quarterly Report\\""');
     });
 
     test('combined from+subject should use correct KQL format', async () => {
@@ -220,6 +222,60 @@ describe('handleSearchEmails', () => {
       const params = firstCall[3];
 
       expect(params.$top).toBe(10);
+    });
+  });
+
+  describe('Bug 2: KQL values with spaces need inner quotes', () => {
+    test('multi-word subject: $search should contain escaped inner quotes', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ subject: 'budget meeting' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('subject:\\"budget meeting\\"');
+    });
+
+    test('multi-word from: $search should contain escaped inner quotes', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'John Doe' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('from:\\"John Doe\\"');
+    });
+
+    test('single-word value: $search should NOT contain escaped inner quotes', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBe('"from:godaddy"');
+    });
+  });
+
+  describe('Bug 3: toKqlDate null-fallback produces invalid KQL', () => {
+    test('invalid after date: received: term should be omitted from $search', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', after: 'not-a-date' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).not.toContain('received:');
+    });
+
+    test('invalid after + valid before: $search should produce received:..MM/DD/YYYY', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', after: 'not-a-date', before: '2025-12-31' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('received:..12/31/2025');
     });
   });
 

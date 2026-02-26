@@ -204,30 +204,46 @@ function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
   }
 
   if (searchTerms.subject) {
-    kqlTerms.push(`subject:${searchTerms.subject}`);
+    kqlTerms.push(`subject:${kqlPhrase(searchTerms.subject)}`);
   }
 
   if (searchTerms.from) {
-    kqlTerms.push(`from:${searchTerms.from}`);
+    kqlTerms.push(`from:${kqlPhrase(searchTerms.from)}`);
   }
 
   if (searchTerms.to) {
-    kqlTerms.push(`to:${searchTerms.to}`);
+    kqlTerms.push(`to:${kqlPhrase(searchTerms.to)}`);
   }
 
   // Add KQL date range filter — server-side filtering via $search
+  // Only add if at least one date is parseable (Bug 3: avoid received:.. with empty sides)
   if (filterTerms.after || filterTerms.before) {
     const afterKql = filterTerms.after ? (toKqlDate(filterTerms.after) || '') : '';
     const beforeKql = filterTerms.before ? (toKqlDate(filterTerms.before) || '') : '';
-    kqlTerms.push(`received:${afterKql}..${beforeKql}`);
+    if (afterKql || beforeKql) {
+      kqlTerms.push(`received:${afterKql}..${beforeKql}`);
+    }
   }
 
-  // Wrap KQL terms in outer double quotes as required by Graph API
+  // Wrap KQL terms in outer double quotes as required by Graph API.
+  // Inner double quotes (from kqlPhrase) are escaped to keep the outer wrapper intact.
   if (kqlTerms.length > 0) {
-    params.$search = `"${kqlTerms.join(' ')}"`;
+    const kqlExpression = kqlTerms.join(' ').replace(/"/g, '\\"');
+    params.$search = `"${kqlExpression}"`;
   }
 
   return params;
+}
+
+/**
+ * Wrap a KQL property value in double quotes if it contains spaces (phrase search).
+ * The outer $search wrapper requires inner quotes to be escaped separately.
+ * @param {string} value - The property value (e.g. "John Doe" or "godaddy")
+ * @returns {string} - Unquoted for single words, "..." wrapped for phrases
+ */
+function kqlPhrase(value) {
+  if (!value.includes(' ')) return value;
+  return `"${value}"`;
 }
 
 /**
