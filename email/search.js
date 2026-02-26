@@ -27,6 +27,9 @@ async function handleSearchEmails(args) {
   const category = args.category || null;
   const minSize = args.minSize || null;  // Minimum email size in bytes
   const maxSize = args.maxSize || null;  // Maximum email size in bytes
+  const cc = args.cc || '';
+  const importance = args.importance || null;  // 'high', 'normal', 'low'
+  const flagged = args.flagged;  // boolean: true = only flagged emails
 
   // New parameters for advanced filtering
   const before = args.before || null;  // ISO date string or relative like "2024-01-01"
@@ -46,8 +49,8 @@ async function handleSearchEmails(args) {
     const response = await progressiveSearch(
       endpoint,
       accessToken,
-      { query, from, to, subject, body, attachmentName },
-      { hasAttachments, unreadOnly, before, after, category, minSize, maxSize },
+      { query, from, to, cc, subject, body, attachmentName },
+      { hasAttachments, unreadOnly, before, after, category, minSize, maxSize, importance, flagged },
       requestedCount,
       sortOrder,
       skip
@@ -107,6 +110,10 @@ function applyClientSideFilters(emails, filterTerms) {
     result = result.filter(e => e.categories && e.categories.includes(filterTerms.category));
   }
 
+  if (filterTerms.flagged === true) {
+    result = result.filter(e => e.flag?.flagStatus === 'flagged');
+  }
+
   return result;
 }
 
@@ -127,7 +134,7 @@ function applyClientSideFilters(emails, filterTerms) {
  */
 async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms, maxCount, sortOrder = 'desc', skip = 0) {
   const orderBy = `receivedDateTime ${sortOrder}`;
-  const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject || searchTerms.body || searchTerms.attachmentName);
+  const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.cc || searchTerms.subject || searchTerms.body || searchTerms.attachmentName);
 
   // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
   // Date, hasAttachments and unreadOnly filters are embedded as KQL terms in $search (server-side).
@@ -154,7 +161,9 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
                      filterTerms.after ||
                      filterTerms.category ||
                      filterTerms.minSize != null ||
-                     filterTerms.maxSize != null;
+                     filterTerms.maxSize != null ||
+                     filterTerms.importance != null ||
+                     filterTerms.flagged === true;
 
   if (hasFilters) {
     const filterParams = {
@@ -219,6 +228,10 @@ function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
     kqlTerms.push(`to:${kqlPhrase(searchTerms.to)}`);
   }
 
+  if (searchTerms.cc) {
+    kqlTerms.push(`cc:${kqlPhrase(searchTerms.cc)}`);
+  }
+
   if (searchTerms.body) {
     kqlTerms.push(`body:${kqlPhrase(searchTerms.body)}`);
   }
@@ -233,6 +246,10 @@ function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
 
   if (filterTerms.unreadOnly === true) {
     kqlTerms.push('isRead:false');
+  }
+
+  if (filterTerms.importance) {
+    kqlTerms.push(`importance:${filterTerms.importance}`);
   }
 
   // Add KQL date range filter — server-side filtering via $search
@@ -375,6 +392,14 @@ function addFilters(params, filterTerms) {
 
   if (filterTerms.maxSize != null) {
     filterConditions.push(`size le ${filterTerms.maxSize}`);
+  }
+
+  if (filterTerms.importance != null) {
+    filterConditions.push(`importance eq '${filterTerms.importance}'`);
+  }
+
+  if (filterTerms.flagged === true) {
+    filterConditions.push(`flag/flagStatus eq 'flagged'`);
   }
 
   // Add $filter parameter if we have any filter conditions

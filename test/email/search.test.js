@@ -590,4 +590,132 @@ describe('handleSearchEmails', () => {
       expect(resolveFolderPath).toHaveBeenCalledWith(mockAccessToken, 'inbox', null);
     });
   });
+
+  describe('cc filter', () => {
+    test('cc alone should use $search with cc: KQL term', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ cc: 'alice@example.com' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('cc:alice@example.com');
+    });
+
+    test('cc should trigger Path 1 (hasTextTerms)', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ cc: 'alice@example.com' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBeDefined();
+      expect(params.$filter).toBeUndefined();
+    });
+
+    test('cc with spaces should be quoted in KQL', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ cc: 'Alice Smith' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('cc:');
+      expect(params.$search).toContain('Alice Smith');
+    });
+
+    test('cc combined with from should combine in $search', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'boss@example.com', cc: 'me@example.com' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('from:boss@example.com');
+      expect(params.$search).toContain('cc:me@example.com');
+    });
+  });
+
+  describe('importance filter', () => {
+    test('importance alone should use $filter with importance eq', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ importance: 'high' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$filter).toContain("importance eq 'high'");
+      expect(params.$search).toBeUndefined();
+    });
+
+    test('importance with text should use KQL importance: term', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'boss@example.com', importance: 'high' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('importance:high');
+      expect(params.$filter).toBeUndefined();
+    });
+
+    test('importance low should work in $filter', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ importance: 'low' });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$filter).toContain("importance eq 'low'");
+    });
+  });
+
+  describe('flagged filter', () => {
+    test('flagged:true alone should use $filter with flag/flagStatus eq flagged', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ flagged: true });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$filter).toContain("flag/flagStatus eq 'flagged'");
+      expect(params.$search).toBeUndefined();
+    });
+
+    test('flagged:true should add to hasFilters (trigger Path 2)', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ flagged: true });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$filter).toBeDefined();
+      expect(params.$orderby).toBeDefined();
+    });
+
+    test('flagged:true combined with text should not affect $search', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      const flaggedEmail = { ...mockEmails[0], flag: { flagStatus: 'flagged' } };
+      callGraphAPIPaginated.mockResolvedValue({ value: [flaggedEmail] });
+
+      const result = await handleSearchEmails({ from: 'boss@example.com', flagged: true });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      // Path 1: $search is used (text term present), flagged is client-side
+      expect(params.$search).toBeDefined();
+      expect(params.$search).not.toContain('flag');
+    });
+
+    test('flagged:true with text should filter client-side by flagStatus', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      const flaggedEmail = { ...mockEmails[0], flag: { flagStatus: 'flagged' } };
+      const unflaggedEmail = { ...mockEmails[0], id: 'email-2', flag: { flagStatus: 'notFlagged' } };
+      callGraphAPIPaginated.mockResolvedValue({ value: [flaggedEmail, unflaggedEmail] });
+
+      const result = await handleSearchEmails({ from: 'boss@example.com', flagged: true });
+
+      // Should only return the flagged email
+      expect(result.content[0].text).toContain('Found 1');
+    });
+  });
 });

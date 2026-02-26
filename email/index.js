@@ -71,9 +71,22 @@ const emailTools = [
           type: "string",
           description: "Filter by text in the email body"
         },
+        cc: {
+          type: "string",
+          description: "Filter by CC recipient email address or name"
+        },
         attachmentName: {
           type: "string",
           description: "Filter by attachment filename (e.g. 'rechnung.pdf' or 'report')"
+        },
+        importance: {
+          type: "string",
+          enum: ["high", "normal", "low"],
+          description: "Filter by email importance level"
+        },
+        flagged: {
+          type: "boolean",
+          description: "Filter to only flagged emails (flag/flagStatus eq 'flagged')"
         },
         minSize: {
           type: "number",
