@@ -10,6 +10,7 @@ const handleCreateEvent = require('./create');
 const handleCancelEvent = require('./cancel');
 const handleDeleteEvent = require('./delete');
 const handleUpdateEvent = require('./update');
+const handleFindMeetingTimes = require('./find-times');
 
 // Shared mailbox description used across all calendar tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary calendar.";
@@ -108,6 +109,37 @@ const calendarTools = [
       required: ["attendees", "startTime", "endTime"]
     },
     handler: handleGetSchedule
+  },
+  {
+    name: "find-meeting-times",
+    description: "Finds available meeting time slots when all specified attendees are free. Returns up to 10 suggestions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        attendees: {
+          type: "string",
+          description: "Comma-separated email addresses of required attendees (e.g. 'alice@example.com, bob@example.com')"
+        },
+        duration: {
+          type: "number",
+          description: "Required meeting duration in minutes (e.g. 60)"
+        },
+        startTime: {
+          type: "string",
+          description: "Earliest possible start time (ISO 8601, e.g. '2026-03-01T09:00:00')"
+        },
+        endTime: {
+          type: "string",
+          description: "Latest possible end time (ISO 8601, e.g. '2026-03-05T17:00:00')"
+        },
+        timezone: {
+          type: "string",
+          description: "IANA timezone for interpreting times (default: 'UTC', e.g. 'Europe/Berlin')"
+        }
+      },
+      required: ["attendees", "duration", "startTime", "endTime"]
+    },
+    handler: handleFindMeetingTimes
   },
   {
     name: "accept-event",
@@ -291,5 +323,6 @@ module.exports = {
   handleCreateEvent,
   handleCancelEvent,
   handleDeleteEvent,
-  handleUpdateEvent
+  handleUpdateEvent,
+  handleFindMeetingTimes
 };
