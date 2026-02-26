@@ -98,15 +98,7 @@ function sortByDate(emails, sortOrder) {
 function applyClientSideFilters(emails, filterTerms) {
   let result = emails;
 
-  // after/before are handled server-side via KQL received: in $search
-
-  if (filterTerms.hasAttachments === true) {
-    result = result.filter(e => e.hasAttachments === true);
-  }
-
-  if (filterTerms.unreadOnly === true) {
-    result = result.filter(e => e.isRead === false);
-  }
+  // after/before, hasAttachments and unreadOnly are handled server-side via KQL in $search
 
   if (filterTerms.category) {
     result = result.filter(e => e.categories && e.categories.includes(filterTerms.category));
@@ -135,8 +127,8 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
   const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject || searchTerms.body);
 
   // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
-  // Date filters are embedded as KQL received: ranges in $search (server-side).
-  // Boolean/category filters and skip are applied client-side after sorting.
+  // Date, hasAttachments and unreadOnly filters are embedded as KQL terms in $search (server-side).
+  // Category filter is applied client-side after sorting.
   // Note: $skip is NOT supported with $search in Graph API — we fetch skip+count
   // items and slice client-side after sorting.
   if (hasTextTerms) {
@@ -224,6 +216,14 @@ function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
 
   if (searchTerms.body) {
     kqlTerms.push(`body:${kqlPhrase(searchTerms.body)}`);
+  }
+
+  if (filterTerms.hasAttachments === true) {
+    kqlTerms.push('hasAttachments:true');
+  }
+
+  if (filterTerms.unreadOnly === true) {
+    kqlTerms.push('isRead:false');
   }
 
   // Add KQL date range filter — server-side filtering via $search

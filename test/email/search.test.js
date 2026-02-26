@@ -396,6 +396,50 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Feature: hasAttachments + unreadOnly in KQL (server-side in $search)', () => {
+    test('from + hasAttachments: $search should contain hasAttachments:true KQL term', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'alice@example.com', hasAttachments: true });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('hasAttachments:true');
+    });
+
+    test('from + unreadOnly: $search should contain isRead:false KQL term', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'alice@example.com', unreadOnly: true });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('isRead:false');
+    });
+
+    test('from + hasAttachments + unreadOnly: $search should contain both KQL terms', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'alice@example.com', hasAttachments: true, unreadOnly: true });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toContain('hasAttachments:true');
+      expect(params.$search).toContain('isRead:false');
+    });
+
+    test('hasAttachments without text terms: should use $filter (Path 2), not $search', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ hasAttachments: true });
+
+      const params = callGraphAPIPaginated.mock.calls[0][3];
+      expect(params.$search).toBeUndefined();
+      expect(params.$filter).toContain('hasAttachments eq true');
+    });
+  });
+
   describe('Feature: body search parameter', () => {
     test('body filter should produce body: KQL term', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');
