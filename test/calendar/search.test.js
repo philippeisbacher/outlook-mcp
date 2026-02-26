@@ -27,6 +27,56 @@ afterEach(() => {
 });
 
 describe('handleSearchEvents', () => {
+  describe('calendarView endpoint', () => {
+    test('should use calendarView endpoint to expand recurring events', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ query: 'test' });
+
+      const [, , endpoint] = callGraphAPI.mock.calls[0];
+      expect(endpoint).toContain('calendarView');
+      expect(endpoint).not.toContain('/events');
+    });
+
+    test('should pass after as startDateTime query param (not $filter)', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ after: '2026-03-01' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.startDateTime).toContain('2026-03-01');
+      // $filter should not contain date conditions (may be undefined or a subject filter)
+      expect(params.$filter || '').not.toContain('start/dateTime ge');
+    });
+
+    test('should pass before as endDateTime query param (not $filter)', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ before: '2026-03-31' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.endDateTime).toContain('2026-03-31');
+      expect(params.$filter || '').not.toContain('start/dateTime lt');
+    });
+
+    test('text query should still use $filter=contains() alongside calendarView date params', async () => {
+      ensureAuthenticated.mockResolvedValue(mockAccessToken);
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      await handleSearchEvents({ query: 'Sync', after: '2026-03-01', before: '2026-03-31' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.startDateTime).toContain('2026-03-01');
+      expect(params.endDateTime).toContain('2026-03-31');
+      expect(params.$filter).toContain("contains(subject, 'Sync')");
+      // Date must NOT be in $filter
+      expect(params.$filter).not.toContain('start/dateTime');
+    });
+  });
+
   describe('text search', () => {
     test('should search events by subject using $filter contains()', async () => {
       ensureAuthenticated.mockResolvedValue(mockAccessToken);
@@ -69,42 +119,6 @@ describe('handleSearchEvents', () => {
     });
   });
 
-  describe('date filters', () => {
-    test('should add after filter to $filter when provided', async () => {
-      ensureAuthenticated.mockResolvedValue(mockAccessToken);
-      callGraphAPI.mockResolvedValue({ value: [] });
-
-      await handleSearchEvents({ after: '2026-03-01' });
-
-      const [, , , , params] = callGraphAPI.mock.calls[0];
-      expect(params.$filter).toContain('start/dateTime ge');
-      expect(params.$filter).toContain('2026-03-01');
-    });
-
-    test('should add before filter to $filter when provided', async () => {
-      ensureAuthenticated.mockResolvedValue(mockAccessToken);
-      callGraphAPI.mockResolvedValue({ value: [] });
-
-      await handleSearchEvents({ before: '2026-03-31' });
-
-      const [, , , , params] = callGraphAPI.mock.calls[0];
-      expect(params.$filter).toContain('start/dateTime lt');
-      expect(params.$filter).toContain('2026-03-31');
-    });
-
-    test('should combine subject filter with date filters', async () => {
-      ensureAuthenticated.mockResolvedValue(mockAccessToken);
-      callGraphAPI.mockResolvedValue({ value: [] });
-
-      await handleSearchEvents({ query: 'Sync', after: '2026-03-01', before: '2026-03-31' });
-
-      const [, , , , params] = callGraphAPI.mock.calls[0];
-      expect(params.$filter).toContain("contains(subject, 'Sync')");
-      expect(params.$filter).toContain('start/dateTime ge');
-      expect(params.$filter).toContain('start/dateTime lt');
-    });
-  });
-
   describe('count and mailbox', () => {
     test('should respect count parameter', async () => {
       ensureAuthenticated.mockResolvedValue(mockAccessToken);
@@ -123,7 +137,8 @@ describe('handleSearchEvents', () => {
       await handleSearchEvents({ query: 'test', mailbox: 'shared@company.com' });
 
       const [, , endpoint] = callGraphAPI.mock.calls[0];
-      expect(endpoint).toContain('users/shared@company.com/events');
+      expect(endpoint).toContain('users/shared@company.com');
+      expect(endpoint).toContain('calendarView');
     });
   });
 

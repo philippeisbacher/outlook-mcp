@@ -8,7 +8,7 @@ const { getMailboxBasePath } = require('../utils/mailbox-path');
 const { escapeODataString } = require('../utils/odata-helpers');
 
 /**
- * Search calendar events handler
+ * Search calendar events handler — uses calendarView to correctly expand recurring events
  * @param {object} args - Tool arguments
  * @returns {object} - MCP response
  */
@@ -16,38 +16,35 @@ async function handleSearchEvents(args) {
   const count = Math.min(args.count || 10, config.MAX_RESULT_COUNT);
   const mailbox = args.mailbox || null;
   const query = args.query || null;
-  const after = args.after || null;
-  const before = args.before || null;
+
+  const startDateTime = args.after
+    ? new Date(args.after).toISOString()
+    : new Date().toISOString();
+
+  const defaultEnd = new Date(startDateTime);
+  defaultEnd.setDate(defaultEnd.getDate() + 30);
+  const endDateTime = args.before
+    ? new Date(args.before).toISOString()
+    : defaultEnd.toISOString();
 
   try {
     const accessToken = await ensureAuthenticated();
     const basePath = getMailboxBasePath(mailbox);
-    const endpoint = `${basePath}/events`;
 
-    const filterConditions = [];
-
-    if (query) {
-      filterConditions.push(`contains(subject, '${escapeODataString(query)}')`);
-    }
-
-    if (after) {
-      const afterDate = new Date(after).toISOString();
-      filterConditions.push(`start/dateTime ge '${afterDate}'`);
-    }
-
-    if (before) {
-      const beforeDate = new Date(before).toISOString();
-      filterConditions.push(`start/dateTime lt '${beforeDate}'`);
-    }
+    // calendarView expands recurring event instances — /events does not
+    const endpoint = `${basePath}/calendarView`;
 
     const queryParams = {
+      startDateTime,
+      endDateTime,
       $top: count,
       $orderby: 'start/dateTime',
       $select: config.CALENDAR_SELECT_FIELDS
     };
 
-    if (filterConditions.length > 0) {
-      queryParams.$filter = filterConditions.join(' and ');
+    // Text search via $filter contains() — compatible with calendarView
+    if (query) {
+      queryParams.$filter = `contains(subject, '${escapeODataString(query)}')`;
     }
 
     const response = await callGraphAPI(accessToken, 'GET', endpoint, null, queryParams);

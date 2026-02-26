@@ -29,67 +29,29 @@ describe('handleListEvents', () => {
     console.error.mockRestore();
   });
 
-  test('should list events with location', async () => {
-    callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
-
-    const result = await handleListEvents({ count: 5 });
-
-    expect(result.content[0].text).toContain('Team Meeting');
-    expect(result.content[0].text).toContain('Conference Room A');
-  });
-
-  test('Bug: should not crash when event has no location (location is null)', async () => {
-    callGraphAPI.mockResolvedValue({
-      value: [makeEvent({ location: null })]
-    });
-
-    // Should NOT throw TypeError: Cannot read properties of null
-    const result = await handleListEvents({ count: 5 });
-
-    expect(result.content[0].text).toContain('Team Meeting');
-    expect(result.content[0].text).toContain('No location');
-  });
-
-  test('Bug: should not crash when event location has no displayName', async () => {
-    callGraphAPI.mockResolvedValue({
-      value: [makeEvent({ location: {} })]
-    });
-
-    const result = await handleListEvents({ count: 5 });
-
-    expect(result.content[0].text).toContain('No location');
-  });
-
-  test('should return "no events" message when API returns empty list', async () => {
-    callGraphAPI.mockResolvedValue({ value: [] });
-
-    const result = await handleListEvents({});
-
-    expect(result.content[0].text).toContain('No calendar events found');
-  });
-
-  describe('date filters', () => {
-    test('should use custom after date in $filter when provided', async () => {
+  describe('calendarView endpoint', () => {
+    test('should use calendarView endpoint (not /events) to expand recurring events', async () => {
       callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
 
-      await handleListEvents({ after: '2026-03-01' });
+      await handleListEvents({});
 
-      const [, , , , params] = callGraphAPI.mock.calls[0];
-      expect(params.$filter).toContain('start/dateTime ge');
-      expect(params.$filter).toContain('2026-03-01');
+      const [, , endpoint] = callGraphAPI.mock.calls[0];
+      expect(endpoint).toContain('calendarView');
+      expect(endpoint).not.toContain('/events');
     });
 
-    test('should add before date to $filter when provided', async () => {
+    test('should pass startDateTime and endDateTime as query params (not $filter)', async () => {
       callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
 
-      await handleListEvents({ before: '2026-03-31' });
+      await handleListEvents({ after: '2026-03-01', before: '2026-03-31' });
 
       const [, , , , params] = callGraphAPI.mock.calls[0];
-      expect(params.$filter).toContain('start/dateTime lt');
-      expect(params.$filter).toContain('2026-03-31');
+      expect(params.startDateTime).toContain('2026-03-01');
+      expect(params.endDateTime).toContain('2026-03-31');
+      expect(params.$filter).toBeUndefined();
     });
 
-    test('should default after to now when no date params provided', async () => {
+    test('should default endDateTime to ~30 days from startDateTime when before is not provided', async () => {
       callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
       const before = new Date();
 
@@ -97,13 +59,53 @@ describe('handleListEvents', () => {
 
       const after = new Date();
       const [, , , , params] = callGraphAPI.mock.calls[0];
-      expect(params.$filter).toContain('start/dateTime ge');
-      // The ISO date in the filter should be between before and after
-      const dateInFilter = params.$filter.match(/ge '(.+?)'/)?.[1];
-      expect(dateInFilter).toBeDefined();
-      const filterDate = new Date(dateInFilter);
-      expect(filterDate.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
-      expect(filterDate.getTime()).toBeLessThanOrEqual(after.getTime() + 1000);
+      expect(params.startDateTime).toBeDefined();
+      expect(params.endDateTime).toBeDefined();
+
+      const start = new Date(params.startDateTime);
+      const end = new Date(params.endDateTime);
+      const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+      expect(diffDays).toBeCloseTo(30, 0);
+    });
+  });
+
+  describe('event rendering', () => {
+    test('should list events with location', async () => {
+      callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
+
+      const result = await handleListEvents({ count: 5 });
+
+      expect(result.content[0].text).toContain('Team Meeting');
+      expect(result.content[0].text).toContain('Conference Room A');
+    });
+
+    test('Bug: should not crash when event has no location (location is null)', async () => {
+      callGraphAPI.mockResolvedValue({
+        value: [makeEvent({ location: null })]
+      });
+
+      const result = await handleListEvents({ count: 5 });
+
+      expect(result.content[0].text).toContain('Team Meeting');
+      expect(result.content[0].text).toContain('No location');
+    });
+
+    test('Bug: should not crash when event location has no displayName', async () => {
+      callGraphAPI.mockResolvedValue({
+        value: [makeEvent({ location: {} })]
+      });
+
+      const result = await handleListEvents({ count: 5 });
+
+      expect(result.content[0].text).toContain('No location');
+    });
+
+    test('should return "no events" message when API returns empty list', async () => {
+      callGraphAPI.mockResolvedValue({ value: [] });
+
+      const result = await handleListEvents({});
+
+      expect(result.content[0].text).toContain('No calendar events found');
     });
   });
 });
