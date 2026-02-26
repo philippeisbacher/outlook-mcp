@@ -103,18 +103,14 @@ server.fallbackRequestHandler = async (request) => {
         
         // Tool not found
         return {
-          error: {
-            code: -32601,
-            message: `Tool not found: ${name}`
-          }
+          content: [{ type: "text", text: `Tool not found: ${name}` }],
+          isError: true
         };
       } catch (error) {
         console.error(`Error in tools/call:`, error);
         return {
-          error: {
-            code: -32603,
-            message: `Error processing tool call: ${error.message}`
-          }
+          content: [{ type: "text", text: `Error processing tool call: ${error.message}` }],
+          isError: true
         };
       }
     }
