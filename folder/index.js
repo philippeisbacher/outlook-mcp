@@ -4,6 +4,7 @@
 const handleListFolders = require('./list');
 const handleCreateFolder = require('./create');
 const handleMoveEmails = require('./move');
+const handleMoveEmail = require('./move-single');
 
 // Shared mailbox description used across all folder tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary mailbox.";
@@ -57,6 +58,29 @@ const folderTools = [
     handler: handleCreateFolder
   },
   {
+    name: "move-email",
+    description: "Moves a single email to a folder in your account or a shared mailbox",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to move"
+        },
+        targetFolder: {
+          type: "string",
+          description: "Name of the destination folder (e.g. 'Archive', 'Projects/2026')"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["id", "targetFolder"]
+    },
+    handler: handleMoveEmail
+  },
+  {
     name: "move-emails",
     description: "Moves emails from one folder to another in your account or a shared mailbox",
     inputSchema: {
@@ -89,5 +113,6 @@ module.exports = {
   folderTools,
   handleListFolders,
   handleCreateFolder,
+  handleMoveEmail,
   handleMoveEmails
 };
