@@ -11,6 +11,7 @@ const { handleListAttachments, handleGetAttachment } = require('./attachments');
 const { handleReplyEmail, handleForwardEmail } = require('./reply');
 const handleFlagEmail = require('./flag');
 const handleGetEmailThread = require('./thread');
+const handleCreateDraft = require('./draft');
 
 // Shared mailbox description used across all email tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary mailbox.";
@@ -327,6 +328,41 @@ const emailTools = [
     handler: handleForwardEmail
   },
   {
+    name: "create-draft",
+    description: "Creates a new email draft without sending it. The draft can be found in the Drafts folder.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        to: {
+          type: "string",
+          description: "Comma-separated list of recipient email addresses"
+        },
+        subject: {
+          type: "string",
+          description: "Email subject"
+        },
+        body: {
+          type: "string",
+          description: "Email body content (plain text or HTML)"
+        },
+        cc: {
+          type: "string",
+          description: "Comma-separated list of CC recipient email addresses"
+        },
+        bcc: {
+          type: "string",
+          description: "Comma-separated list of BCC recipient email addresses"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["to", "subject", "body"]
+    },
+    handler: handleCreateDraft
+  },
+  {
     name: "list-attachments",
     description: "Lists all attachments of a specific email, returning their names, sizes, content types, and IDs needed to download them.",
     inputSchema: {
@@ -383,5 +419,6 @@ module.exports = {
   handleReplyEmail,
   handleForwardEmail,
   handleFlagEmail,
-  handleGetEmailThread
+  handleGetEmailThread,
+  handleCreateDraft
 };
