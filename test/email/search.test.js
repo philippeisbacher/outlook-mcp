@@ -110,6 +110,60 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Bug 3: $search and $filter must not be combined', () => {
+    test('from + after must NOT send $filter to the API', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', after: '2025-12-01' });
+
+      const firstCall = callGraphAPIPaginated.mock.calls[0];
+      const params = firstCall[3];
+
+      expect(params.$search).toBeDefined();
+      expect(params.$filter).toBeUndefined();
+    });
+
+    test('from + after: results must be filtered client-side by date', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      const emailsFromApi = [
+        {
+          id: 'old-email',
+          subject: 'Old GoDaddy invoice',
+          from: { emailAddress: { name: 'GoDaddy', address: 'billing@godaddy.com' } },
+          receivedDateTime: '2025-11-15T10:00:00Z', // before after-date → should be filtered out
+          isRead: true,
+          categories: []
+        },
+        {
+          id: 'new-email',
+          subject: 'New GoDaddy invoice',
+          from: { emailAddress: { name: 'GoDaddy', address: 'billing@godaddy.com' } },
+          receivedDateTime: '2026-01-10T10:00:00Z', // after after-date → should be kept
+          isRead: true,
+          categories: []
+        }
+      ];
+      callGraphAPIPaginated.mockResolvedValue({ value: emailsFromApi });
+
+      const result = await handleSearchEmails({ from: 'godaddy', after: '2025-12-01' });
+
+      expect(result.content[0].text).toContain('new-email');
+      expect(result.content[0].text).not.toContain('old-email');
+    });
+
+    test('when $search returns 0 results, should NOT fall back to basic listing', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: [] });
+
+      const result = await handleSearchEmails({ from: 'nobody@example.com' });
+
+      // Should only make ONE API call (no fallbacks)
+      expect(callGraphAPIPaginated).toHaveBeenCalledTimes(1);
+      expect(result.content[0].text).toContain('No emails found');
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');

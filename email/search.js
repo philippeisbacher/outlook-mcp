@@ -71,79 +71,76 @@ async function handleSearchEmails(args) {
 }
 
 /**
- * Execute a search with progressively simpler fallback strategies
+ * Apply date/boolean/category filters client-side (used after $search results)
+ * @param {Array} emails - Email list from API
+ * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after, category)
+ * @returns {Array} - Filtered email list
+ */
+function applyClientSideFilters(emails, filterTerms) {
+  let result = emails;
+
+  if (filterTerms.after) {
+    const afterDate = parseDate(filterTerms.after);
+    if (afterDate) {
+      const afterMs = new Date(afterDate).getTime();
+      result = result.filter(e => new Date(e.receivedDateTime).getTime() >= afterMs);
+    }
+  }
+
+  if (filterTerms.before) {
+    const beforeDate = parseDate(filterTerms.before);
+    if (beforeDate) {
+      const beforeMs = new Date(beforeDate).getTime();
+      result = result.filter(e => new Date(e.receivedDateTime).getTime() < beforeMs);
+    }
+  }
+
+  if (filterTerms.hasAttachments === true) {
+    result = result.filter(e => e.hasAttachments === true);
+  }
+
+  if (filterTerms.unreadOnly === true) {
+    result = result.filter(e => e.isRead === false);
+  }
+
+  if (filterTerms.category) {
+    result = result.filter(e => e.categories && e.categories.includes(filterTerms.category));
+  }
+
+  return result;
+}
+
+/**
+ * Execute a search against the Graph API
+ * - Text terms (from, subject, to, query): use $search; date/boolean filters applied client-side
+ *   ($search and $filter are mutually exclusive in Graph API)
+ * - Boolean/date filters only: use $filter with $orderby
+ * - No terms, no filters: basic listing
  * @param {string} endpoint - API endpoint
  * @param {string} accessToken - Access token
  * @param {object} searchTerms - Search terms (query, from, to, subject)
- * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after)
+ * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after, category)
  * @param {number} maxCount - Maximum number of results to retrieve
  * @param {string} sortOrder - Sort order ('asc' or 'desc')
  * @param {number} skip - Number of results to skip
  * @returns {Promise<object>} - Search results
  */
 async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms, maxCount, sortOrder = 'desc', skip = 0) {
-  // Track search strategies attempted
-  const searchAttempts = [];
   const orderBy = `receivedDateTime ${sortOrder}`;
+  const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject);
 
-  // 1. Try combined search (most specific)
-  try {
-    const params = buildSearchParams(searchTerms, filterTerms, Math.min(50, maxCount), orderBy, skip);
-    console.error("Attempting combined search with params:", params);
-    searchAttempts.push("combined-search");
+  // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
+  // Date/boolean/category filters are applied client-side on the results
+  if (hasTextTerms) {
+    const params = buildSearchParams(searchTerms, Math.min(50, maxCount), skip);
+    console.error("Executing $search with params:", params);
 
     const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, params, maxCount);
-    if (response.value && response.value.length > 0) {
-      console.error(`Combined search successful: found ${response.value.length} results`);
-      return response;
-    }
-  } catch (error) {
-    console.error(`Combined search failed: ${error.message}`);
+    const filtered = applyClientSideFilters(response.value || [], filterTerms);
+    return { value: filtered };
   }
 
-  // 2. Try each search term individually, starting with most specific
-  const searchPriority = ['subject', 'from', 'to', 'query'];
-
-  for (const term of searchPriority) {
-    if (searchTerms[term]) {
-      try {
-        console.error(`Attempting search with only ${term}: "${searchTerms[term]}"`);
-        searchAttempts.push(`single-term-${term}`);
-
-        // For single term search, only use $search with that term
-        // Graph API does not support $orderby together with $search
-        const simplifiedParams = {
-          $top: Math.min(50, maxCount),
-          $select: config.EMAIL_SELECT_FIELDS
-        };
-
-        // Add skip if specified
-        if (skip > 0) {
-          simplifiedParams.$skip = skip;
-        }
-
-        // Add the search term in the appropriate KQL syntax (outer double quotes required)
-        if (term === 'query') {
-          simplifiedParams.$search = `"${searchTerms[term]}"`;
-        } else {
-          simplifiedParams.$search = `"${term}:${searchTerms[term]}"`;
-        }
-
-        // Add boolean and date filters if applicable
-        addFilters(simplifiedParams, filterTerms);
-
-        const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, simplifiedParams, maxCount);
-        if (response.value && response.value.length > 0) {
-          console.error(`Search with ${term} successful: found ${response.value.length} results`);
-          return response;
-        }
-      } catch (error) {
-        console.error(`Search with ${term} failed: ${error.message}`);
-      }
-    }
-  }
-
-  // 3. Try with only filters (boolean + date + category)
+  // Path 2: No text terms, only boolean/date/category filters → use $filter with $orderby
   const hasFilters = filterTerms.hasAttachments === true ||
                      filterTerms.unreadOnly === true ||
                      filterTerms.before ||
@@ -151,83 +148,48 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
                      filterTerms.category;
 
   if (hasFilters) {
-    try {
-      console.error("Attempting search with only filters");
-      searchAttempts.push("filters-only");
+    const filterParams = {
+      $top: Math.min(50, maxCount),
+      $select: config.EMAIL_SELECT_FIELDS,
+      $orderby: orderBy
+    };
+    if (skip > 0) filterParams.$skip = skip;
+    addFilters(filterParams, filterTerms);
+    console.error("Executing $filter search with params:", filterParams);
 
-      const filterOnlyParams = {
-        $top: Math.min(50, maxCount),
-        $select: config.EMAIL_SELECT_FIELDS,
-        $orderby: orderBy
-      };
-
-      // Add skip if specified
-      if (skip > 0) {
-        filterOnlyParams.$skip = skip;
-      }
-
-      // Add the filters
-      addFilters(filterOnlyParams, filterTerms);
-
-      const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, filterOnlyParams, maxCount);
-      console.error(`Filter search found ${response.value?.length || 0} results`);
-      return response;
-    } catch (error) {
-      console.error(`Filter search failed: ${error.message}`);
-    }
+    return await callGraphAPIPaginated(accessToken, 'GET', endpoint, filterParams, maxCount);
   }
 
-  // 4. Final fallback: just get emails with pagination and sort order
-  console.error("All search strategies failed, falling back to basic listing");
-  searchAttempts.push("basic-listing");
-
+  // Path 3: No terms, no filters → basic listing
+  console.error("No search terms or filters, returning basic listing");
   const basicParams = {
     $top: Math.min(50, maxCount),
     $select: config.EMAIL_SELECT_FIELDS,
     $orderby: orderBy
   };
+  if (skip > 0) basicParams.$skip = skip;
 
-  // Add skip if specified
-  if (skip > 0) {
-    basicParams.$skip = skip;
-  }
-
-  const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, basicParams, maxCount);
-  console.error(`Basic listing found ${response.value?.length || 0} results`);
-
-  // Add a note to the response about the search attempts
-  response._searchInfo = {
-    attemptsCount: searchAttempts.length,
-    strategies: searchAttempts,
-    originalTerms: searchTerms,
-    filterTerms: filterTerms
-  };
-
-  return response;
+  return await callGraphAPIPaginated(accessToken, 'GET', endpoint, basicParams, maxCount);
 }
 
 /**
- * Build search parameters from search terms and filter terms
+ * Build $search query parameters from text search terms.
+ * Note: $filter and $orderby must NOT be included — they are incompatible with $search in Graph API.
  * @param {object} searchTerms - Search terms (query, from, to, subject)
- * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after)
  * @param {number} count - Maximum number of results
- * @param {string} orderBy - Order by clause
  * @param {number} skip - Number of results to skip
- * @returns {object} - Query parameters
+ * @returns {object} - Query parameters with $search set
  */
-function buildSearchParams(searchTerms, filterTerms, count, orderBy = 'receivedDateTime desc', skip = 0) {
+function buildSearchParams(searchTerms, count, skip = 0) {
   const params = {
     $top: count,
-    $select: config.EMAIL_SELECT_FIELDS,
-    $orderby: orderBy
+    $select: config.EMAIL_SELECT_FIELDS
   };
 
-  // Add skip if specified
   if (skip > 0) {
     params.$skip = skip;
   }
 
-  // Handle search terms
   const kqlTerms = [];
 
   if (searchTerms.query) {
@@ -246,15 +208,10 @@ function buildSearchParams(searchTerms, filterTerms, count, orderBy = 'receivedD
     kqlTerms.push(`to:${searchTerms.to}`);
   }
 
-  // Add $search if we have any search terms (wrapped in outer double quotes for Graph API KQL)
+  // Wrap KQL terms in outer double quotes as required by Graph API
   if (kqlTerms.length > 0) {
     params.$search = `"${kqlTerms.join(' ')}"`;
-    // Graph API does not support $orderby together with $search
-    delete params.$orderby;
   }
-
-  // Add filters (boolean + date)
-  addFilters(params, filterTerms);
 
   return params;
 }
