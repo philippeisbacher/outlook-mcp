@@ -53,7 +53,7 @@ const emailTools = [
         },
         folder: {
           type: "string",
-          description: "Email folder to search in (default: 'inbox')"
+          description: "Email folder to search in (e.g. 'inbox', 'sent', 'drafts'). Default: searches all folders."
         },
         from: {
           type: "string",
