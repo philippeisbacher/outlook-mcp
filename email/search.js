@@ -93,21 +93,7 @@ function sortByDate(emails, sortOrder) {
 function applyClientSideFilters(emails, filterTerms) {
   let result = emails;
 
-  if (filterTerms.after) {
-    const afterDate = parseDate(filterTerms.after);
-    if (afterDate) {
-      const afterMs = new Date(afterDate).getTime();
-      result = result.filter(e => new Date(e.receivedDateTime).getTime() >= afterMs);
-    }
-  }
-
-  if (filterTerms.before) {
-    const beforeDate = parseDate(filterTerms.before);
-    if (beforeDate) {
-      const beforeMs = new Date(beforeDate).getTime();
-      result = result.filter(e => new Date(e.receivedDateTime).getTime() < beforeMs);
-    }
-  }
+  // after/before are handled server-side via KQL received: in $search
 
   if (filterTerms.hasAttachments === true) {
     result = result.filter(e => e.hasAttachments === true);
@@ -144,14 +130,12 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
   const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject);
 
   // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
-  // Date/boolean/category filters are applied client-side on the results.
-  // When date filters are active, fetch 250 results from the API to compensate for
-  // client-side date filtering reducing the result count below maxCount.
+  // Date filters are embedded as KQL received: ranges in $search (server-side).
+  // Boolean/category filters are still applied client-side on the results.
   if (hasTextTerms) {
-    const dateFiltersActive = !!(filterTerms.after || filterTerms.before);
-    const apiFetchCount = dateFiltersActive ? 250 : Math.min(50, maxCount);
+    const apiFetchCount = Math.min(50, maxCount);
 
-    const params = buildSearchParams(searchTerms, apiFetchCount, skip);
+    const params = buildSearchParams(searchTerms, filterTerms, apiFetchCount, skip);
     console.error("Executing $search with params:", params);
 
     const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, params, apiFetchCount);
@@ -196,12 +180,14 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
 /**
  * Build $search query parameters from text search terms.
  * Note: $filter and $orderby must NOT be included — they are incompatible with $search in Graph API.
+ * Date filters (after/before) are included as KQL received: ranges.
  * @param {object} searchTerms - Search terms (query, from, to, subject)
+ * @param {object} filterTerms - Filter terms (after, before handled here; rest applied client-side)
  * @param {number} count - Maximum number of results
  * @param {number} skip - Number of results to skip
  * @returns {object} - Query parameters with $search set
  */
-function buildSearchParams(searchTerms, count, skip = 0) {
+function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
   const params = {
     $top: count,
     $select: config.EMAIL_SELECT_FIELDS
@@ -229,12 +215,34 @@ function buildSearchParams(searchTerms, count, skip = 0) {
     kqlTerms.push(`to:${searchTerms.to}`);
   }
 
+  // Add KQL date range filter — server-side filtering via $search
+  if (filterTerms.after || filterTerms.before) {
+    const afterKql = filterTerms.after ? (toKqlDate(filterTerms.after) || '') : '';
+    const beforeKql = filterTerms.before ? (toKqlDate(filterTerms.before) || '') : '';
+    kqlTerms.push(`received:${afterKql}..${beforeKql}`);
+  }
+
   // Wrap KQL terms in outer double quotes as required by Graph API
   if (kqlTerms.length > 0) {
     params.$search = `"${kqlTerms.join(' ')}"`;
   }
 
   return params;
+}
+
+/**
+ * Convert a date string to KQL date format (MM/DD/YYYY) for use in $search received: filters
+ * @param {string} dateStr - Date string (ISO, "YYYY-MM-DD", relative)
+ * @returns {string|null} - Date in MM/DD/YYYY format or null if invalid
+ */
+function toKqlDate(dateStr) {
+  const iso = parseDate(dateStr);
+  if (!iso) return null;
+  const d = new Date(iso);
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const yyyy = d.getUTCFullYear();
+  return `${mm}/${dd}/${yyyy}`;
 }
 
 /**

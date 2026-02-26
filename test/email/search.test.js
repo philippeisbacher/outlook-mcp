@@ -124,14 +124,14 @@ describe('handleSearchEmails', () => {
       expect(params.$filter).toBeUndefined();
     });
 
-    test('from + after: results must be filtered client-side by date', async () => {
+    test('from + after: date filtering is delegated to server-side KQL, not client-side', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');
       const emailsFromApi = [
         {
           id: 'old-email',
           subject: 'Old GoDaddy invoice',
           from: { emailAddress: { name: 'GoDaddy', address: 'billing@godaddy.com' } },
-          receivedDateTime: '2025-11-15T10:00:00Z', // before after-date → should be filtered out
+          receivedDateTime: '2025-11-15T10:00:00Z',
           isRead: true,
           categories: []
         },
@@ -139,7 +139,7 @@ describe('handleSearchEmails', () => {
           id: 'new-email',
           subject: 'New GoDaddy invoice',
           from: { emailAddress: { name: 'GoDaddy', address: 'billing@godaddy.com' } },
-          receivedDateTime: '2026-01-10T10:00:00Z', // after after-date → should be kept
+          receivedDateTime: '2026-01-10T10:00:00Z',
           isRead: true,
           categories: []
         }
@@ -148,8 +148,10 @@ describe('handleSearchEmails', () => {
 
       const result = await handleSearchEmails({ from: 'godaddy', after: '2025-12-01' });
 
+      // Date filtering is now server-side via KQL — mock API returns both emails,
+      // client-side filtering by date has been removed.
       expect(result.content[0].text).toContain('new-email');
-      expect(result.content[0].text).not.toContain('old-email');
+      expect(result.content[0].text).toContain('old-email');
     });
 
     test('when $search returns 0 results, should NOT fall back to basic listing', async () => {
@@ -208,7 +210,7 @@ describe('handleSearchEmails', () => {
       expect(text.indexOf('ID: middle')).toBeLessThan(text.indexOf('ID: newest'));
     });
 
-    test('with after-filter active, should request 250 results from API regardless of count', async () => {
+    test('with after-filter active, should request only requestedCount results (KQL handles server-side filtering)', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');
       callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
 
@@ -217,7 +219,57 @@ describe('handleSearchEmails', () => {
       const firstCall = callGraphAPIPaginated.mock.calls[0];
       const params = firstCall[3];
 
-      expect(params.$top).toBe(250);
+      expect(params.$top).toBe(10);
+    });
+  });
+
+  describe('Improvement 3: KQL date ranges in $search', () => {
+    test('from + after: $search should contain received:MM/DD/YYYY..', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', after: '2025-12-01' });
+
+      const firstCall = callGraphAPIPaginated.mock.calls[0];
+      const params = firstCall[3];
+
+      expect(params.$search).toContain('received:12/01/2025..');
+    });
+
+    test('from + before: $search should contain received:..MM/DD/YYYY', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', before: '2025-12-31' });
+
+      const firstCall = callGraphAPIPaginated.mock.calls[0];
+      const params = firstCall[3];
+
+      expect(params.$search).toContain('received:..12/31/2025');
+    });
+
+    test('from + after + before: $search should contain received:MM/DD/YYYY..MM/DD/YYYY', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', after: '2025-12-01', before: '2025-12-31' });
+
+      const firstCall = callGraphAPIPaginated.mock.calls[0];
+      const params = firstCall[3];
+
+      expect(params.$search).toContain('received:12/01/2025..12/31/2025');
+    });
+
+    test('from + after: $top should be requestedCount, not 250', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', after: '2025-12-01', count: 10 });
+
+      const firstCall = callGraphAPIPaginated.mock.calls[0];
+      const params = firstCall[3];
+
+      expect(params.$top).toBe(10);
     });
   });
 
