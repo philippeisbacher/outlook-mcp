@@ -67,4 +67,43 @@ describe('handleListEvents', () => {
 
     expect(result.content[0].text).toContain('No calendar events found');
   });
+
+  describe('date filters', () => {
+    test('should use custom after date in $filter when provided', async () => {
+      callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
+
+      await handleListEvents({ after: '2026-03-01' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.$filter).toContain('start/dateTime ge');
+      expect(params.$filter).toContain('2026-03-01');
+    });
+
+    test('should add before date to $filter when provided', async () => {
+      callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
+
+      await handleListEvents({ before: '2026-03-31' });
+
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.$filter).toContain('start/dateTime lt');
+      expect(params.$filter).toContain('2026-03-31');
+    });
+
+    test('should default after to now when no date params provided', async () => {
+      callGraphAPI.mockResolvedValue({ value: [makeEvent()] });
+      const before = new Date();
+
+      await handleListEvents({});
+
+      const after = new Date();
+      const [, , , , params] = callGraphAPI.mock.calls[0];
+      expect(params.$filter).toContain('start/dateTime ge');
+      // The ISO date in the filter should be between before and after
+      const dateInFilter = params.$filter.match(/ge '(.+?)'/)?.[1];
+      expect(dateInFilter).toBeDefined();
+      const filterDate = new Date(dateInFilter);
+      expect(filterDate.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+      expect(filterDate.getTime()).toBeLessThanOrEqual(after.getTime() + 1000);
+    });
+  });
 });

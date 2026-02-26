@@ -2,6 +2,7 @@
  * Calendar module for Outlook MCP server
  */
 const handleListEvents = require('./list');
+const handleSearchEvents = require('./search');
 const handleDeclineEvent = require('./decline');
 const handleCreateEvent = require('./create');
 const handleCancelEvent = require('./cancel');
@@ -22,6 +23,14 @@ const calendarTools = [
           type: "number",
           description: "Number of events to retrieve (default: 10, max: 50)"
         },
+        after: {
+          type: "string",
+          description: "Show events starting after this date (ISO format, e.g. '2026-03-01'). Defaults to now."
+        },
+        before: {
+          type: "string",
+          description: "Show events starting before this date (ISO format, e.g. '2026-03-31')"
+        },
         mailbox: {
           type: "string",
           description: MAILBOX_DESCRIPTION
@@ -30,6 +39,37 @@ const calendarTools = [
       required: []
     },
     handler: handleListEvents
+  },
+  {
+    name: "search-events",
+    description: "Search calendar events by subject text and/or date range",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Text to search for in event subjects"
+        },
+        after: {
+          type: "string",
+          description: "Filter events starting after this date (ISO format, e.g. '2026-03-01')"
+        },
+        before: {
+          type: "string",
+          description: "Filter events starting before this date (ISO format, e.g. '2026-03-31')"
+        },
+        count: {
+          type: "number",
+          description: "Number of results to return (default: 10, max: 50)"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: []
+    },
+    handler: handleSearchEvents
   },
   {
     name: "decline-event",
@@ -139,6 +179,7 @@ const calendarTools = [
 module.exports = {
   calendarTools,
   handleListEvents,
+  handleSearchEvents,
   handleDeclineEvent,
   handleCreateEvent,
   handleCancelEvent,

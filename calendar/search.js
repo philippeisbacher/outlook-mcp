@@ -1,45 +1,55 @@
 /**
- * List events functionality
+ * Search calendar events functionality
  */
 const config = require('../config');
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
 const { getMailboxBasePath } = require('../utils/mailbox-path');
+const { escapeODataString } = require('../utils/odata-helpers');
 
 /**
- * List events handler
+ * Search calendar events handler
  * @param {object} args - Tool arguments
  * @returns {object} - MCP response
  */
-async function handleListEvents(args) {
+async function handleSearchEvents(args) {
   const count = Math.min(args.count || 10, config.MAX_RESULT_COUNT);
   const mailbox = args.mailbox || null;
-  const afterDate = args.after ? new Date(args.after).toISOString() : new Date().toISOString();
-  const beforeDate = args.before ? new Date(args.before).toISOString() : null;
+  const query = args.query || null;
+  const after = args.after || null;
+  const before = args.before || null;
 
   try {
-    // Get access token
     const accessToken = await ensureAuthenticated();
-
-    // Build API endpoint (with optional shared mailbox support)
     const basePath = getMailboxBasePath(mailbox);
     const endpoint = `${basePath}/events`;
 
-    // Build date filter
-    let dateFilter = `start/dateTime ge '${afterDate}'`;
-    if (beforeDate) {
-      dateFilter += ` and start/dateTime lt '${beforeDate}'`;
+    const filterConditions = [];
+
+    if (query) {
+      filterConditions.push(`contains(subject, '${escapeODataString(query)}')`);
     }
 
-    // Add query parameters
+    if (after) {
+      const afterDate = new Date(after).toISOString();
+      filterConditions.push(`start/dateTime ge '${afterDate}'`);
+    }
+
+    if (before) {
+      const beforeDate = new Date(before).toISOString();
+      filterConditions.push(`start/dateTime lt '${beforeDate}'`);
+    }
+
     const queryParams = {
       $top: count,
       $orderby: 'start/dateTime',
-      $filter: dateFilter,
       $select: config.CALENDAR_SELECT_FIELDS
     };
 
-    // Make API call
+    if (filterConditions.length > 0) {
+      queryParams.$filter = filterConditions.join(' and ');
+    }
+
     const response = await callGraphAPI(accessToken, 'GET', endpoint, null, queryParams);
 
     if (!response.value || response.value.length === 0) {
@@ -52,13 +62,12 @@ async function handleListEvents(args) {
       };
     }
 
-    // Format results
     const eventList = response.value.map((event, index) => {
       const startDate = new Date(event.start.dateTime).toLocaleString(event.start.timeZone);
       const endDate = new Date(event.end.dateTime).toLocaleString(event.end.timeZone);
       const location = event.location?.displayName || 'No location';
 
-      return `${index + 1}. ${event.subject} - Location: ${location}\nStart: ${startDate}\nEnd: ${endDate}\nSubject: ${event.subject}\nSummary: ${event.bodyPreview}\nID: ${event.id}\n`;
+      return `${index + 1}. ${event.subject} - Location: ${location}\nStart: ${startDate}\nEnd: ${endDate}\nSummary: ${event.bodyPreview}\nID: ${event.id}\n`;
     }).join("\n");
 
     const mailboxInfo = mailbox ? ` (shared mailbox: ${mailbox})` : '';
@@ -82,11 +91,11 @@ async function handleListEvents(args) {
     return {
       content: [{
         type: "text",
-        text: `Error listing events: ${error.message}`
+        text: `Error searching events: ${error.message}`
       }],
       isError: true
     };
   }
 }
 
-module.exports = handleListEvents;
+module.exports = handleSearchEvents;
