@@ -48,7 +48,7 @@ async function handleListEvents(args) {
     const eventList = response.value.map((event, index) => {
       const startDate = new Date(event.start.dateTime).toLocaleString(event.start.timeZone);
       const endDate = new Date(event.end.dateTime).toLocaleString(event.end.timeZone);
-      const location = event.location.displayName || 'No location';
+      const location = event.location?.displayName || 'No location';
 
       return `${index + 1}. ${event.subject} - Location: ${location}\nStart: ${startDate}\nEnd: ${endDate}\nSubject: ${event.subject}\nSummary: ${event.bodyPreview}\nID: ${event.id}\n`;
     }).join("\n");
