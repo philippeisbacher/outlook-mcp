@@ -164,6 +164,63 @@ describe('handleSearchEmails', () => {
     });
   });
 
+  describe('Improvement 1+2: client-side sort and date-filter prefetch', () => {
+    const makeEmail = (id, date) => ({
+      id,
+      subject: `Email ${id}`,
+      from: { emailAddress: { name: 'Sender', address: 'sender@example.com' } },
+      receivedDateTime: date,
+      isRead: true,
+      categories: []
+    });
+
+    test('$search results should be sorted by date descending by default', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({
+        value: [
+          makeEmail('oldest', '2024-01-01T10:00:00Z'),
+          makeEmail('newest', '2024-03-01T10:00:00Z'),
+          makeEmail('middle', '2024-02-01T10:00:00Z'),
+        ]
+      });
+
+      const result = await handleSearchEmails({ from: 'sender@example.com' });
+      const text = result.content[0].text;
+
+      expect(text.indexOf('ID: newest')).toBeLessThan(text.indexOf('ID: middle'));
+      expect(text.indexOf('ID: middle')).toBeLessThan(text.indexOf('ID: oldest'));
+    });
+
+    test('$search results should be sorted by date ascending when sortOrder is asc', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({
+        value: [
+          makeEmail('oldest', '2024-01-01T10:00:00Z'),
+          makeEmail('newest', '2024-03-01T10:00:00Z'),
+          makeEmail('middle', '2024-02-01T10:00:00Z'),
+        ]
+      });
+
+      const result = await handleSearchEmails({ from: 'sender@example.com', sortOrder: 'asc' });
+      const text = result.content[0].text;
+
+      expect(text.indexOf('ID: oldest')).toBeLessThan(text.indexOf('ID: middle'));
+      expect(text.indexOf('ID: middle')).toBeLessThan(text.indexOf('ID: newest'));
+    });
+
+    test('with after-filter active, should request 250 results from API regardless of count', async () => {
+      resolveFolderPath.mockResolvedValue('me/messages');
+      callGraphAPIPaginated.mockResolvedValue({ value: mockEmails });
+
+      await handleSearchEmails({ from: 'godaddy', after: '2025-12-01', count: 10 });
+
+      const firstCall = callGraphAPIPaginated.mock.calls[0];
+      const params = firstCall[3];
+
+      expect(params.$top).toBe(250);
+    });
+  });
+
   describe('Bug 4: global search when no folder specified', () => {
     test('should use me/messages when no folder is specified', async () => {
       resolveFolderPath.mockResolvedValue('me/messages');

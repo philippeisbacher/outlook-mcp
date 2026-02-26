@@ -71,6 +71,20 @@ async function handleSearchEmails(args) {
 }
 
 /**
+ * Sort emails by receivedDateTime client-side (used after $search, which ignores $orderby)
+ * @param {Array} emails - Email list
+ * @param {string} sortOrder - 'asc' or 'desc'
+ * @returns {Array} - Sorted email list (new array, original not mutated)
+ */
+function sortByDate(emails, sortOrder) {
+  return [...emails].sort((a, b) => {
+    const dateA = new Date(a.receivedDateTime).getTime();
+    const dateB = new Date(b.receivedDateTime).getTime();
+    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+  });
+}
+
+/**
  * Apply date/boolean/category filters client-side (used after $search results)
  * @param {Array} emails - Email list from API
  * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after, category)
@@ -130,13 +144,20 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
   const hasTextTerms = !!(searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject);
 
   // Path 1: Text search → use $search only (no $filter allowed with $search in Graph API)
-  // Date/boolean/category filters are applied client-side on the results
+  // Date/boolean/category filters are applied client-side on the results.
+  // When date filters are active, fetch 250 results from the API to compensate for
+  // client-side date filtering reducing the result count below maxCount.
   if (hasTextTerms) {
-    const params = buildSearchParams(searchTerms, Math.min(50, maxCount), skip);
+    const dateFiltersActive = !!(filterTerms.after || filterTerms.before);
+    const apiFetchCount = dateFiltersActive ? 250 : Math.min(50, maxCount);
+
+    const params = buildSearchParams(searchTerms, apiFetchCount, skip);
     console.error("Executing $search with params:", params);
 
-    const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, params, maxCount);
-    const filtered = applyClientSideFilters(response.value || [], filterTerms);
+    const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, params, apiFetchCount);
+    let filtered = applyClientSideFilters(response.value || [], filterTerms);
+    filtered = sortByDate(filtered, sortOrder);
+    filtered = filtered.slice(0, maxCount);
     return { value: filtered };
   }
 
