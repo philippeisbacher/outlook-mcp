@@ -5,12 +5,6 @@ const { callGraphAPI } = require('../utils/graph-api');
 const { getMailboxBasePath, getWellKnownFolders, buildMailboxPath } = require('../utils/mailbox-path');
 
 /**
- * Cache of folder information to reduce API calls
- * Format: { mailbox: { folderName: { id, path } } }
- */
-const folderCache = {};
-
-/**
  * Well-known folder names and their endpoints (for primary mailbox - legacy support)
  * @deprecated Use getWellKnownFolders(mailbox) instead for shared mailbox support
  */
