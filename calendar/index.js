@@ -4,6 +4,7 @@
 const handleListEvents = require('./list');
 const handleSearchEvents = require('./search');
 const handleGetSchedule = require('./schedule');
+const handleAcceptEvent = require('./accept');
 const handleDeclineEvent = require('./decline');
 const handleCreateEvent = require('./create');
 const handleCancelEvent = require('./cancel');
@@ -106,6 +107,29 @@ const calendarTools = [
       required: ["attendees", "startTime", "endTime"]
     },
     handler: handleGetSchedule
+  },
+  {
+    name: "accept-event",
+    description: "Accepts a calendar event invitation in your calendar or a shared mailbox",
+    inputSchema: {
+      type: "object",
+      properties: {
+        eventId: {
+          type: "string",
+          description: "The ID of the event to accept"
+        },
+        comment: {
+          type: "string",
+          description: "Optional comment to send with the acceptance"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["eventId"]
+    },
+    handler: handleAcceptEvent
   },
   {
     name: "decline-event",
@@ -217,6 +241,7 @@ module.exports = {
   handleListEvents,
   handleSearchEvents,
   handleGetSchedule,
+  handleAcceptEvent,
   handleDeclineEvent,
   handleCreateEvent,
   handleCancelEvent,
