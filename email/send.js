@@ -17,28 +17,31 @@ async function handleSendEmail(args) {
   // Validate required parameters
   if (!to) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "Recipient (to) is required."
-      }]
+      }],
+      isError: true
     };
   }
-  
+
   if (!subject) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "Subject is required."
-      }]
+      }],
+      isError: true
     };
   }
-  
+
   if (!body) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "Body content is required."
-      }]
+      }],
+      isError: true
     };
   }
   
@@ -104,18 +107,20 @@ async function handleSendEmail(args) {
   } catch (error) {
     if (error.message === 'Authentication required') {
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
-    
+
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: `Error sending email: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

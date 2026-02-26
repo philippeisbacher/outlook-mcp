@@ -19,7 +19,8 @@ async function handleDeleteEmail(args) {
       content: [{
         type: "text",
         text: "Email ID is required. Please provide the ID of the email to delete."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -52,7 +53,8 @@ async function handleDeleteEmail(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -62,7 +64,8 @@ async function handleDeleteEmail(args) {
         content: [{
           type: "text",
           text: `Email not found. The email with ID "${emailId}" may have already been deleted or does not exist.`
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -70,7 +73,8 @@ async function handleDeleteEmail(args) {
       content: [{
         type: "text",
         text: `Error deleting email: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

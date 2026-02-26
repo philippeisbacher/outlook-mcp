@@ -21,7 +21,8 @@ async function handleCreateFolder(args) {
       content: [{
         type: "text",
         text: "Folder name is required."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -44,7 +45,8 @@ async function handleCreateFolder(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -52,7 +54,8 @@ async function handleCreateFolder(args) {
       content: [{
         type: "text",
         text: `Error creating folder: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

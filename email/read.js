@@ -20,7 +20,8 @@ async function handleReadEmail(args) {
       content: [{
         type: "text",
         text: "Email ID is required."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -103,7 +104,8 @@ ${body}`;
               type: "text",
               text: `The email ID seems invalid or doesn't belong to your mailbox${mailboxInfo}. Please try with a different email ID.`
             }
-          ]
+          ],
+          isError: true
         };
       } else {
         return {
@@ -112,25 +114,28 @@ ${body}`;
               type: "text",
               text: `Failed to read email: ${error.message}`
             }
-          ]
+          ],
+          isError: true
         };
       }
     }
   } catch (error) {
     if (error.message === 'Authentication required') {
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
-    
+
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: `Error accessing email: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

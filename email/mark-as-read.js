@@ -21,7 +21,8 @@ async function handleMarkAsRead(args) {
       content: [{
         type: "text",
         text: "Email ID is required."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -61,7 +62,8 @@ async function handleMarkAsRead(args) {
               type: "text",
               text: `The email ID seems invalid or doesn't belong to your mailbox${mailboxInfo}. Please try with a different email ID.`
             }
-          ]
+          ],
+          isError: true
         };
       } else if (error.message.includes("UNAUTHORIZED")) {
         return {
@@ -70,7 +72,8 @@ async function handleMarkAsRead(args) {
               type: "text",
               text: "Authentication failed. Please re-authenticate and try again."
             }
-          ]
+          ],
+          isError: true
         };
       } else {
         return {
@@ -79,25 +82,28 @@ async function handleMarkAsRead(args) {
               type: "text",
               text: `Failed to mark email as ${isRead ? 'read' : 'unread'}: ${error.message}`
             }
-          ]
+          ],
+          isError: true
         };
       }
     }
   } catch (error) {
     if (error.message === 'Authentication required') {
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
-    
+
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: `Error accessing email: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

@@ -65,18 +65,20 @@ async function handleListEmails(args) {
   } catch (error) {
     if (error.message === 'Authentication required') {
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
-    
+
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: `Error listing emails: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

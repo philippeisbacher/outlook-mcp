@@ -18,7 +18,8 @@ async function handleDeclineEvent(args) {
       content: [{
         type: "text",
         text: "Event ID is required to decline an event."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -51,7 +52,8 @@ async function handleDeclineEvent(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -59,7 +61,8 @@ async function handleDeclineEvent(args) {
       content: [{
         type: "text",
         text: `Error declining event: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

@@ -20,7 +20,8 @@ async function handleRemoveCategory(args) {
       content: [{
         type: "text",
         text: "Email ID is required. Please provide the ID of the email."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -29,7 +30,8 @@ async function handleRemoveCategory(args) {
       content: [{
         type: "text",
         text: "Category name is required."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -89,7 +91,8 @@ async function handleRemoveCategory(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -97,7 +100,8 @@ async function handleRemoveCategory(args) {
       content: [{
         type: "text",
         text: `Error removing category: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

@@ -16,7 +16,8 @@ async function handleListAttachments(args) {
 
   if (!emailId) {
     return {
-      content: [{ type: "text", text: "Email ID is required." }]
+      content: [{ type: "text", text: "Email ID is required." }],
+      isError: true
     };
   }
 
@@ -53,14 +54,16 @@ async function handleListAttachments(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
     return {
       content: [{
         type: "text",
         text: `Error listing attachments: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }
@@ -77,7 +80,8 @@ async function handleGetAttachment(args) {
 
   if (!emailId || !attachmentId) {
     return {
-      content: [{ type: "text", text: "Email ID and Attachment ID are required." }]
+      content: [{ type: "text", text: "Email ID and Attachment ID are required." }],
+      isError: true
     };
   }
 
@@ -131,14 +135,16 @@ async function handleGetAttachment(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
     return {
       content: [{
         type: "text",
         text: `Error getting attachment: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

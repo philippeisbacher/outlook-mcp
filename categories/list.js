@@ -54,7 +54,8 @@ async function handleListCategories(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -62,7 +63,8 @@ async function handleListCategories(args) {
       content: [{
         type: "text",
         text: `Error listing categories: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

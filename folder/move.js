@@ -22,7 +22,8 @@ async function handleMoveEmails(args) {
       content: [{
         type: "text",
         text: "Email IDs are required. Please provide a comma-separated list of email IDs to move."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -31,7 +32,8 @@ async function handleMoveEmails(args) {
       content: [{
         type: "text",
         text: "Target folder name is required."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -47,7 +49,8 @@ async function handleMoveEmails(args) {
         content: [{
           type: "text",
           text: "No valid email IDs provided."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -66,7 +69,8 @@ async function handleMoveEmails(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -74,7 +78,8 @@ async function handleMoveEmails(args) {
       content: [{
         type: "text",
         text: `Error moving emails: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

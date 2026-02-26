@@ -18,7 +18,8 @@ async function handleDeleteEvent(args) {
       content: [{
         type: "text",
         text: "Event ID is required to delete an event."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -46,7 +47,8 @@ async function handleDeleteEvent(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -54,7 +56,8 @@ async function handleDeleteEvent(args) {
       content: [{
         type: "text",
         text: `Error deleting event: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

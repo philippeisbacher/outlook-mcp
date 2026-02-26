@@ -20,7 +20,8 @@ async function handleAddCategory(args) {
       content: [{
         type: "text",
         text: "Email ID is required. Please provide the ID of the email."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -29,7 +30,8 @@ async function handleAddCategory(args) {
       content: [{
         type: "text",
         text: "Category name is required. Use 'list-categories' to see available categories."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -85,7 +87,8 @@ async function handleAddCategory(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -95,7 +98,8 @@ async function handleAddCategory(args) {
         content: [{
           type: "text",
           text: `Category "${category}" does not exist. Use 'list-categories' to see available categories.`
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -103,7 +107,8 @@ async function handleAddCategory(args) {
       content: [{
         type: "text",
         text: `Error adding category: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

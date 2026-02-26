@@ -57,7 +57,8 @@ async function handleSearchEmails(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -66,7 +67,8 @@ async function handleSearchEmails(args) {
       content: [{
         type: "text",
         text: `Error searching emails: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

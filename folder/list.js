@@ -47,7 +47,8 @@ async function handleListFolders(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -55,7 +56,8 @@ async function handleListFolders(args) {
       content: [{
         type: "text",
         text: `Error listing folders: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

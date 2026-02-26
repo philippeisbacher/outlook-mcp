@@ -19,7 +19,8 @@ async function handleCreateEvent(args) {
       content: [{
         type: "text",
         text: "Subject, start, and end times are required to create an event."
-      }]
+      }],
+      isError: true
     };
   }
 
@@ -56,7 +57,8 @@ async function handleCreateEvent(args) {
         content: [{
           type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
 
@@ -64,7 +66,8 @@ async function handleCreateEvent(args) {
       content: [{
         type: "text",
         text: `Error creating event: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }

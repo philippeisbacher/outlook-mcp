@@ -26,41 +26,45 @@ async function handleCreateRule(args) {
   // Add validation for sequence parameter
   if (sequence !== undefined && (isNaN(sequence) || sequence < 1)) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "Sequence must be a positive number greater than zero."
-      }]
+      }],
+      isError: true
     };
   }
-  
+
   if (!name) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "Rule name is required."
-      }]
+      }],
+      isError: true
     };
   }
-  
+
   // Validate that at least one condition or action is specified
   const hasCondition = fromAddresses || containsSubject || hasAttachments === true;
   const hasAction = moveToFolder || markAsRead === true;
-  
+
   if (!hasCondition) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "At least one condition is required. Specify fromAddresses, containsSubject, or hasAttachments."
-      }]
+      }],
+      isError: true
     };
   }
-  
+
   if (!hasAction) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "At least one action is required. Specify moveToFolder or markAsRead."
-      }]
+      }],
+      isError: true
     };
   }
   
@@ -96,18 +100,20 @@ async function handleCreateRule(args) {
   } catch (error) {
     if (error.message === 'Authentication required') {
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: "Authentication required. Please use the 'authenticate' tool first."
-        }]
+        }],
+        isError: true
       };
     }
-    
+
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: `Error creating rule: ${error.message}`
-      }]
+      }],
+      isError: true
     };
   }
 }
