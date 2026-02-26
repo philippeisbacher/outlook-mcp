@@ -8,6 +8,7 @@ const handleSendEmail = require('./send');
 const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
 const { handleListAttachments, handleGetAttachment } = require('./attachments');
+const { handleReplyEmail, handleForwardEmail } = require('./reply');
 
 // Shared mailbox description used across all email tools
 const MAILBOX_DESCRIPTION = "Email address of a shared mailbox to access. Leave empty to use your primary mailbox.";
@@ -211,6 +212,60 @@ const emailTools = [
     handler: handleDeleteEmail
   },
   {
+    name: "reply-email",
+    description: "Replies to an existing email. Use replyAll to reply to all recipients.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to reply to"
+        },
+        comment: {
+          type: "string",
+          description: "Reply body text"
+        },
+        replyAll: {
+          type: "boolean",
+          description: "If true, replies to all recipients (default: false)"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["id", "comment"]
+    },
+    handler: handleReplyEmail
+  },
+  {
+    name: "forward-email",
+    description: "Forwards an existing email to one or more recipients",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to forward"
+        },
+        to: {
+          type: "string",
+          description: "Comma-separated list of recipient email addresses"
+        },
+        comment: {
+          type: "string",
+          description: "Optional message to prepend to the forwarded email"
+        },
+        mailbox: {
+          type: "string",
+          description: MAILBOX_DESCRIPTION
+        }
+      },
+      required: ["id", "to"]
+    },
+    handler: handleForwardEmail
+  },
+  {
     name: "list-attachments",
     description: "Lists all attachments of a specific email, returning their names, sizes, content types, and IDs needed to download them.",
     inputSchema: {
@@ -263,5 +318,7 @@ module.exports = {
   handleMarkAsRead,
   handleDeleteEmail,
   handleListAttachments,
-  handleGetAttachment
+  handleGetAttachment,
+  handleReplyEmail,
+  handleForwardEmail
 };
