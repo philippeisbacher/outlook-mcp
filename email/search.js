@@ -2,7 +2,7 @@
  * Improved search emails functionality
  */
 const config = require('../config');
-const { callGraphAPI, callGraphAPIPaginated } = require('../utils/graph-api');
+const { callGraphAPIPaginated } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
 const { resolveFolderPath } = require('./folder-utils');
 
@@ -85,9 +85,10 @@ function sortByDate(emails, sortOrder) {
 }
 
 /**
- * Apply date/boolean/category filters client-side (used after $search results)
+ * Apply boolean/category filters client-side (used after $search results)
+ * Note: after/before are handled server-side via KQL received: in $search
  * @param {Array} emails - Email list from API
- * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, before, after, category)
+ * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly, category)
  * @returns {Array} - Filtered email list
  */
 function applyClientSideFilters(emails, filterTerms) {
@@ -397,16 +398,10 @@ function formatSearchResults(response, sortOrder = 'desc', skip = 0) {
     infoStr = ` (${sortInfo})`;
   }
 
-  // Add search strategy info if available
-  let additionalInfo = '';
-  if (response._searchInfo) {
-    additionalInfo = `\n(Search used ${response._searchInfo.strategies[response._searchInfo.strategies.length - 1]} strategy)`;
-  }
-
   return {
     content: [{
       type: "text",
-      text: `Found ${response.value.length} emails${infoStr}:${additionalInfo}\n\n${emailList}`
+      text: `Found ${response.value.length} emails${infoStr}:\n\n${emailList}`
     }]
   };
 }

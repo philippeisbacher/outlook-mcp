@@ -168,7 +168,7 @@ describe('handleSearchEmails', () => {
     });
   });
 
-  describe('Improvement 1+2: client-side sort and date-filter prefetch', () => {
+  describe('Improvement 1+2: client-side sort after $search', () => {
     const makeEmail = (id, date) => ({
       id,
       subject: `Email ${id}`,
