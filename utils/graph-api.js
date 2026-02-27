@@ -40,27 +40,31 @@ async function callGraphAPI(accessToken, method, path, data = null, queryParams 
       // Build query string from parameters with special handling for OData filters
       let queryString = '';
       if (Object.keys(queryParams).length > 0) {
-        // Handle $filter parameter specially to ensure proper URI encoding
-        const filter = queryParams.$filter;
-        if (filter) {
-          delete queryParams.$filter; // Remove from regular params
-        }
-        
+        // Extract $filter and $search before URLSearchParams — they need special handling
+        const filteredParams = { ...queryParams };
+        const filter = filteredParams.$filter;
+        const search = filteredParams.$search;
+        if (filter) delete filteredParams.$filter;
+        if (search) delete filteredParams.$search;
+
         // Build query string with proper encoding for regular params
         const params = new URLSearchParams();
-        for (const [key, value] of Object.entries(queryParams)) {
+        for (const [key, value] of Object.entries(filteredParams)) {
           params.append(key, value);
         }
-        
+
         queryString = params.toString();
-        
-        // Add filter parameter separately with proper encoding
+
+        // Add $filter with encodeURIComponent (spaces → %20, etc.)
         if (filter) {
-          if (queryString) {
-            queryString += `&$filter=${encodeURIComponent(filter)}`;
-          } else {
-            queryString = `$filter=${encodeURIComponent(filter)}`;
-          }
+          const sep = queryString ? '&' : '';
+          queryString += `${sep}$filter=${encodeURIComponent(filter)}`;
+        }
+
+        // Add $search WITHOUT encoding — KQL requires literal ':' and '"' characters
+        if (search) {
+          const sep = queryString ? '&' : '';
+          queryString += `${sep}$search=${search}`;
         }
         
         if (queryString) {
